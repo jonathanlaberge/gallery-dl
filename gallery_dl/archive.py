@@ -26,7 +26,7 @@ def connect(path, prefix, format,
         else:
             cls = DownloadArchivePostgresql
     elif isinstance(path, str) and path.startswith(
-            ("mssql://", "sqlserver://")):
+            ("mssql:", "sqlserver:")):
         if mode == "memory":
             cls = DownloadArchiveSQLServerMemory
         else:
@@ -253,15 +253,9 @@ class DownloadArchiveSQLServer():
             import pyodbc
             DownloadArchiveSQLServer._pyodbc = pyodbc
 
-        if uri.startswith("mssql://") or uri.startswith("sqlserver://"):
-            uri = uri.replace("mssql://", "").replace("sqlserver://", "")
-            userinfo, host_db = uri.split("@")
-            user, password = userinfo.split(":")
-            host, database = host_db.split("/", 1)
-            conn_str = (
-                f"DRIVER={{ODBC Driver 17 for SQL Server}};"
-                f"SERVER={host};DATABASE={database};UID={user};PWD={password}"
-            )
+        if uri.startswith("mssql:") or uri.startswith("sqlserver:"):
+            uri = uri.replace("mssql:", "").replace("sqlserver:", "")
+            conn_str = uri
         else:
             conn_str = uri
 
@@ -283,8 +277,8 @@ class DownloadArchiveSQLServer():
         try:
             cursor.execute(
                 f"IF NOT EXISTS (SELECT * FROM INFORMATION_SCHEMA.TABLES "
-                f"WHERE TABLE_NAME = '{table.strip('"')}') "
-                f"CREATE TABLE {table} (entry NVARCHAR(400) PRIMARY KEY)"
+                f"WHERE TABLE_NAME = '{table}') "
+                f"CREATE TABLE {table} (entry NVARCHAR(512) PRIMARY KEY)"
             )
         except Exception as exc:
             log.error("%s: %s when creating '%s' table: %s",
