@@ -25,6 +25,12 @@ def connect(path, prefix, format,
             cls = DownloadArchivePostgresqlMemory
         else:
             cls = DownloadArchivePostgresql
+    elif isinstance(path, str) and path.startswith(
+            ("mssql://", "sqlserver://")):
+        if mode == "memory":
+            cls = DownloadArchiveSQLServerMemory
+        else:
+            cls = DownloadArchiveSQLServer
     else:
         path = util.expand_path(path)
         if kwdict is not None and "{" in path:
@@ -237,3 +243,105 @@ class DownloadArchivePostgresqlMemory(DownloadArchivePostgresql):
             log.error("%s: %s when writing entries: %s",
                       self.connection, exc.__class__.__name__, exc)
             self.connection.rollback()
+
+
+class DownloadArchiveSQLServer():
+    _pyodbc = None
+
+    def __init__(self, uri, keygen, table=None, pragma=None, cache_key=None):
+        if self._pyodbc is None:
+            import pyodbc
+            DownloadArchiveSQLServer._pyodbc = pyodbc
+
+        if uri.startswith("mssql://") or uri.startswith("sqlserver://"):
+            uri = uri.replace("mssql://", "").replace("sqlserver://", "")
+            userinfo, host_db = uri.split("@")
+            user, password = userinfo.split(":")
+            host, database = host_db.split("/", 1)
+            conn_str = (
+                f"DRIVER={{ODBC Driver 17 for SQL Server}};"
+                f"SERVER={host};DATABASE={database};UID={user};PWD={password}"
+            )
+        else:
+            conn_str = uri
+
+        self.connection = con = self._pyodbc.connect(conn_str, autocommit=True)
+        self.cursor = cursor = con.cursor()
+        self.close = con.close
+        self.keygen = keygen
+        self._cache_key = cache_key or "_archive_key"
+
+        table = "archive" if table is None else sanitize(table)
+        self._stmt_select = (
+            f"SELECT 1 FROM {table} WHERE entry = ?"
+        )
+        self._stmt_insert = (
+            f"IF NOT EXISTS (SELECT 1 FROM {table} WHERE entry = ?) "
+            f"INSERT INTO {table} (entry) VALUES (?)"
+        )
+
+        try:
+            cursor.execute(
+                f"IF NOT EXISTS (SELECT * FROM INFORMATION_SCHEMA.TABLES "
+                f"WHERE TABLE_NAME = '{table.strip('"')}') "
+                f"CREATE TABLE {table} (entry NVARCHAR(400) PRIMARY KEY)"
+            )
+        except Exception as exc:
+            log.error("%s: %s when creating '%s' table: %s",
+                      con, exc.__class__.__name__, table, exc)
+            raise
+
+    def add(self, kwdict):
+        key = kwdict.get(self._cache_key) or self.keygen(kwdict)
+        try:
+            self.cursor.execute(self._stmt_insert, (key, key))
+        except Exception as exc:
+            log.error("%s: %s when writing entry: %s",
+                      self.connection, exc.__class__.__name__, exc)
+
+    def check(self, kwdict):
+        key = kwdict[self._cache_key] = self.keygen(kwdict)
+        try:
+            self.cursor.execute(self._stmt_select, (key,))
+            return self.cursor.fetchone()
+        except Exception as exc:
+            log.error("%s: %s when checking entry: %s",
+                      self.connection, exc.__class__.__name__, exc)
+            return False
+
+    def finalize(self):
+        pass
+
+
+class DownloadArchiveSQLServerMemory(DownloadArchiveSQLServer):
+
+    def __init__(self, path, keygen, table=None, pragma=None, cache_key=None):
+        super().__init__(path, keygen, table, pragma, cache_key)
+        self.keys = set()
+
+    def add(self, kwdict):
+        self.keys.add(
+            kwdict.get(self._cache_key) or
+            self.keygen(kwdict))
+
+    def check(self, kwdict):
+        key = kwdict[self._cache_key] = self.keygen(kwdict)
+        if key in self.keys:
+            return True
+        try:
+            self.cursor.execute(self._stmt_select, (key,))
+            return self.cursor.fetchone()
+        except Exception as exc:
+            log.error("%s: %s when checking entry: %s",
+                      self.connection, exc.__class__.__name__, exc)
+            return False
+
+    def finalize(self):
+        if not self.keys:
+            return
+        try:
+            for key in self.keys:
+                self.cursor.execute(self._stmt_insert, (key, key))
+        except Exception as exc:
+            log.error("%s: %s when writing entries: %s",
+                      self.connection, exc.__class__.__name__, exc)
