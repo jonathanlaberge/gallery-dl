@@ -320,20 +320,17 @@ def dump_response(response, fp, headers=False, content=True, hide_auth=True):
         res_headers = response.headers.copy()
 
         if hide_auth:
-            authorization = req_headers.get("Authorization")
-            if authorization:
+            if authorization := req_headers.get("Authorization"):
                 atype, sep, _ = str(authorization).partition(" ")
                 req_headers["Authorization"] = f"{atype} ***" if sep else "***"
 
-            cookie = req_headers.get("Cookie")
-            if cookie:
+            if cookie := req_headers.get("Cookie"):
                 req_headers["Cookie"] = ";".join(
                     c.partition("=")[0] + "=***"
                     for c in cookie.split(";")
                 )
 
-            set_cookie = res_headers.get("Set-Cookie")
-            if set_cookie:
+            if set_cookie := res_headers.get("Set-Cookie"):
                 res_headers["Set-Cookie"] = re(r"(^|, )([^ =]+)=[^,;]*").sub(
                     r"\1\2=***", set_cookie)
 
@@ -377,14 +374,11 @@ def extract_headers(response):
     headers = response.headers
     data = dict(headers)
 
-    hcd = headers.get("content-disposition")
-    if hcd:
-        name = text.extr(hcd, 'filename="', '"')
-        if name:
+    if hcd := headers.get("content-disposition"):
+        if name := text.extr(hcd, 'filename="', '"'):
             text.nameext_from_url(name, data)
 
-    hlm = headers.get("last-modified")
-    if hlm:
+    if hlm := headers.get("last-modified"):
         data["date"] = datetime.datetime(*parsedate_tz(hlm)[:6])
 
     return data
@@ -518,15 +512,15 @@ def cookiestxt_store(fp, cookies):
             value = cookie.value
 
         domain = cookie.domain
-        fp.write("\t".join((
-            domain,
-            "TRUE" if domain and domain[0] == "." else "FALSE",
-            cookie.path,
-            "TRUE" if cookie.secure else "FALSE",
-            "0" if cookie.expires is None else str(cookie.expires),
-            name,
-            value + "\n",
-        )))
+        fp.write(
+            f"{domain}\t"
+            f"{'TRUE' if domain and domain[0] == '.' else 'FALSE'}\t"
+            f"{cookie.path}\t"
+            f"{'TRUE' if cookie.secure else 'FALSE'}\t"
+            f"{'0' if cookie.expires is None else str(cookie.expires)}\t"
+            f"{name}\t"
+            f"{value}\n"
+        )
 
 
 def code_to_language(code, default=None):
@@ -722,6 +716,24 @@ class CustomNone():
     __repr__ = __str__
 
 
+class Flags():
+
+    def __init__(self):
+        self.FILE = self.POST = self.CHILD = self.DOWNLOAD = None
+
+    def process(self, flag):
+        value = self.__dict__[flag]
+        self.__dict__[flag] = None
+
+        if value == "abort":
+            raise exception.AbortExtraction()
+        if value == "terminate":
+            raise exception.TerminateExtraction()
+        if value == "restart":
+            raise exception.RestartExtraction()
+        raise exception.StopExtraction()
+
+
 # v137.0 release of Firefox on 2025-04-01 has ordinal 739342
 # 735506 == 739342 - 137 * 28
 # v135.0 release of Chrome  on 2025-04-01 has ordinal 739342
@@ -737,6 +749,7 @@ re = text.re
 re_compile = text.re_compile
 
 NONE = CustomNone()
+FLAGS = Flags()
 EPOCH = datetime.datetime(1970, 1, 1)
 SECOND = datetime.timedelta(0, 1)
 WINDOWS = (os.name == "nt")
@@ -763,6 +776,7 @@ GLOBALS = {
     "datetime" : datetime.datetime,
     "timedelta": datetime.timedelta,
     "abort"    : raises(exception.StopExtraction),
+    "error"    : raises(exception.AbortExtraction),
     "terminate": raises(exception.TerminateExtraction),
     "restart"  : raises(exception.RestartExtraction),
     "hash_sha1": sha1,
@@ -831,10 +845,12 @@ def compile_expression_defaultdict_impl(expr, name="<expr>", globals=None):
 
 def compile_expression_tryexcept(expr, name="<expr>", globals=None):
     code_object = compile(expr, name, "eval")
+    if globals is None:
+        globals = GLOBALS
 
-    def _eval(locals=None, globals=(globals or GLOBALS), co=code_object):
+    def _eval(locals=None):
         try:
-            return eval(co, globals, locals)
+            return eval(code_object, globals, locals)
         except exception.GalleryDLException:
             raise
         except Exception:

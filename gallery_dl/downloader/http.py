@@ -12,8 +12,9 @@ import time
 import mimetypes
 from requests.exceptions import RequestException, ConnectionError, Timeout
 from .common import DownloaderBase
-from .. import text, util, output
+from .. import text, util, output, exception
 from ssl import SSLError
+FLAGS = util.FLAGS
 
 
 class HttpDownloader(DownloaderBase):
@@ -70,8 +71,7 @@ class HttpDownloader(DownloaderBase):
             self.chunk_size = chunk_size
         if self.rate:
             func = util.build_selection_func(self.rate, 0, text.parse_bytes)
-            rmax = func.args[1] if hasattr(func, "args") else func()
-            if rmax:
+            if rmax := func.args[1] if hasattr(func, "args") else func():
                 if rmax < self.chunk_size:
                     # reduce chunk_size to allow for one iteration each second
                     self.chunk_size = rmax
@@ -140,16 +140,14 @@ class HttpDownloader(DownloaderBase):
             # collect HTTP headers
             headers = {"Accept": "*/*"}
             #   file-specific headers
-            extra = kwdict.get("_http_headers")
-            if extra:
+            if extra := kwdict.get("_http_headers"):
                 headers.update(extra)
             #   general headers
             if self.headers:
                 headers.update(self.headers)
             #   partial content
-            file_size = pathfmt.part_size()
-            if file_size:
-                headers["Range"] = "bytes={}-".format(file_size)
+            if file_size := pathfmt.part_size():
+                headers["Range"] = f"bytes={file_size}-"
 
             # connect to (remote) source
             try:
@@ -167,7 +165,7 @@ class HttpDownloader(DownloaderBase):
                     reason = exc.args[0].reason
                     cls = reason.__class__.__name__
                     pre, _, err = str(reason.args[-1]).partition(":")
-                    msg = "{}: {}".format(cls, (err or pre).lstrip())
+                    msg = f"{cls}: {(err or pre).lstrip()}"
                 except Exception:
                     msg = str(exc)
                 continue
@@ -189,7 +187,7 @@ class HttpDownloader(DownloaderBase):
             elif code == 416 and file_size:  # Requested Range Not Satisfiable
                 break
             else:
-                msg = "'{} {}' for '{}'".format(code, response.reason, url)
+                msg = f"'{code} {response.reason}' for '{url}'"
 
                 challenge = util.detect_challenge(response)
                 if challenge is not None:
@@ -336,11 +334,16 @@ class HttpDownloader(DownloaderBase):
                     msg = str(exc)
                     output.stderr_write("\n")
                     continue
+                except exception.StopExtraction:
+                    response.close()
+                    return False
+                except exception.ControlException:
+                    response.close()
+                    raise
 
                 # check file size
                 if size and fp.tell() < size:
-                    msg = "file size mismatch ({} < {})".format(
-                        fp.tell(), size)
+                    msg = f"file size mismatch ({fp.tell()} < {size})"
                     output.stderr_write("\n")
                     continue
 
@@ -374,6 +377,9 @@ class HttpDownloader(DownloaderBase):
         for data in content:
             write(data)
 
+            if FLAGS.DOWNLOAD is not None:
+                FLAGS.process("DOWNLOAD")
+
     def _receive_rate(self, fp, content, bytes_total, bytes_start):
         rate = self.rate() if self.rate else None
         write = fp.write
@@ -387,6 +393,9 @@ class HttpDownloader(DownloaderBase):
             bytes_downloaded += len(data)
 
             write(data)
+
+            if FLAGS.DOWNLOAD is not None:
+                FLAGS.process("DOWNLOAD")
 
             if progress is not None:
                 if time_elapsed > progress:
@@ -412,8 +421,7 @@ class HttpDownloader(DownloaderBase):
         if mtype in MIME_TYPES:
             return MIME_TYPES[mtype]
 
-        ext = mimetypes.guess_extension(mtype, strict=False)
-        if ext:
+        if ext := mimetypes.guess_extension(mtype, strict=False):
             return ext[1:]
 
         self.log.warning("Unknown MIME type '%s'", mtype)
@@ -424,6 +432,9 @@ class HttpDownloader(DownloaderBase):
         if not SIGNATURE_CHECKS[pathfmt.extension](file_header):
             for ext, check in SIGNATURE_CHECKS.items():
                 if check(file_header):
+                    self.log.debug(
+                        "Adjusting filename extension of '%s' to '%s'",
+                        pathfmt.filename, ext)
                     pathfmt.set_extension(ext)
                     pathfmt.build_path()
                     return True

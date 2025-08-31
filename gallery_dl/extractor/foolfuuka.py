@@ -159,13 +159,12 @@ class FoolfuukaThreadExtractor(FoolfuukaExtractor):
     def metadata(self):
         url = self.root + "/_/api/chan/thread/"
         params = {"board": self.board, "num": self.thread}
-        self.data = self.request(url, params=params).json()[self.thread]
+        self.data = self.request_json(url, params=params)[self.thread]
         return self.data["op"]
 
     def posts(self):
         op = (self.data["op"],)
-        posts = self.data.get("posts")
-        if posts:
+        if posts := self.data.get("posts"):
             posts = list(posts.values())
             posts.sort(key=lambda p: p["timestamp"])
             return itertools.chain(op, posts)
@@ -243,7 +242,7 @@ class FoolfuukaSearchExtractor(FoolfuukaExtractor):
 
         while True:
             try:
-                data = self.request(url, params=params).json()
+                data = self.request_json(url, params=params)
             except ValueError:
                 return
 

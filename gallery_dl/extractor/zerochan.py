@@ -55,15 +55,16 @@ class ZerochanExtractor(BooruExtractor):
             "login"   : "Login",
         }
 
-        response = self.request(url, method="POST", headers=headers, data=data)
+        response = self.request(
+            url, method="POST", headers=headers, data=data, expected=(500,))
         if not response.history:
             raise exception.AuthenticationError()
 
         return response.cookies
 
     def _parse_entry_html(self, entry_id):
-        url = "{}/{}".format(self.root, entry_id)
-        page = self.request(url).text
+        url = f"{self.root}/{entry_id}"
+        page = self.request(url, expected=(500,)).text
 
         try:
             jsonld = self._extract_jsonld(page)
@@ -101,7 +102,7 @@ class ZerochanExtractor(BooruExtractor):
         return data
 
     def _parse_entry_api(self, entry_id):
-        url = "{}/{}?json".format(self.root, entry_id)
+        url = f"{self.root}/{entry_id}?json"
         txt = self.request(url).text
         try:
             item = util.json_loads(txt)
@@ -173,8 +174,7 @@ class ZerochanTagExtractor(ZerochanExtractor):
             self.posts = self.posts_api
             self.session.headers["User-Agent"] = util.USERAGENT
 
-        exts = self.config("extensions")
-        if exts:
+        if exts := self.config("extensions"):
             if isinstance(exts, str):
                 exts = exts.split(",")
             self.exts = exts
@@ -192,7 +192,7 @@ class ZerochanTagExtractor(ZerochanExtractor):
         metadata = self.config("metadata")
 
         while True:
-            page = self.request(url, params=params).text
+            page = self.request(url, params=params, expected=(500,)).text
             thumbs = text.extr(page, '<ul id="thumbs', '</ul>')
             extr = text.extract_from(thumbs)
 
@@ -238,7 +238,7 @@ class ZerochanTagExtractor(ZerochanExtractor):
                 self.log.warning("HTTP redirect to %s", url)
                 if self.config("redirects"):
                     continue
-                raise exception.StopExtraction()
+                raise exception.AbortExtraction()
 
             data = response.json()
             try:

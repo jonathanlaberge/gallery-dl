@@ -19,7 +19,7 @@ and powerful `filenaming capabilities <https://gdl-org.github.io/docs/formatting
 Dependencies
 ============
 
-- Python_ 3.4+
+- Python_ 3.8+
 - Requests_
 
 Optional
@@ -35,7 +35,8 @@ Optional
 - toml_: TOML configuration file support for Python<3.11
 - SecretStorage_: GNOME keyring passwords for ``--cookies-from-browser``
 - Psycopg_: PostgreSQL archive support
-- truststore_: Native system certificate stores
+- truststore_: Native system certificate support
+- Jinja_: Jinja template support
 
 
 Installation
@@ -78,9 +79,9 @@ Standalone Executable
 Prebuilt executable files with a Python interpreter and
 required Python packages included are available for
 
-- `Windows <https://github.com/mikf/gallery-dl/releases/download/v1.29.7/gallery-dl.exe>`__
+- `Windows <https://github.com/mikf/gallery-dl/releases/download/v1.30.5/gallery-dl.exe>`__
   (Requires `Microsoft Visual C++ Redistributable Package (x86) <https://aka.ms/vs/17/release/vc_redist.x86.exe>`__)
-- `Linux   <https://github.com/mikf/gallery-dl/releases/download/v1.29.7/gallery-dl.bin>`__
+- `Linux   <https://github.com/mikf/gallery-dl/releases/download/v1.30.5/gallery-dl.bin>`__
 
 
 Nightly Builds
@@ -476,6 +477,7 @@ To authenticate with a ``mastodon`` instance, run *gallery-dl* with
 .. _SecretStorage: https://pypi.org/project/SecretStorage/
 .. _Psycopg:    https://www.psycopg.org/
 .. _truststore: https://truststore.readthedocs.io/en/latest/
+.. _Jinja:      https://jinja.palletsprojects.com/
 .. _Snapd:      https://docs.snapcraft.io/installing-snapd
 .. _OAuth:      https://en.wikipedia.org/wiki/OAuth
 .. _Chocolatey: https://chocolatey.org/install

@@ -134,8 +134,8 @@ class FlickrAlbumExtractor(FlickrExtractor):
 
         for album in self.api.photosets_getList(self.user["nsid"]):
             self.api._clean_info(album).update(data)
-            url = "https://www.flickr.com/photos/{}/albums/{}".format(
-                self.user["path_alias"], album["id"])
+            url = (f"https://www.flickr.com/photos/{self.user['path_alias']}"
+                   f"/albums/{album['id']}")
             yield Message.Queue, url, album
 
     def metadata(self):
@@ -451,14 +451,13 @@ class FlickrAPI(oauth.OAuth1API):
                 raise exception.AuthenticationError(msg)
             elif data["code"] == 99:
                 raise exception.AuthorizationError(msg)
-            raise exception.StopExtraction("API request failed: %s", msg)
+            raise exception.AbortExtraction(f"API request failed: {msg}")
         return data
 
     def _pagination(self, method, params, key="photos"):
         extras = ("description,date_upload,tags,views,media,"
                   "path_alias,owner_name,")
-        includes = self.extractor.config("metadata")
-        if includes:
+        if includes := self.extractor.config("metadata"):
             if isinstance(includes, (list, tuple)):
                 includes = ",".join(includes)
             elif not isinstance(includes, str):

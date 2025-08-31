@@ -31,7 +31,7 @@ class NewgroundsExtractor(Extractor):
     def __init__(self, match):
         Extractor.__init__(self, match)
         self.user = match[1]
-        self.user_root = "https://{}.newgrounds.com".format(self.user)
+        self.user_root = f"https://{self.user}.newgrounds.com"
 
     def _init(self):
         self._extract_comment_urls = util.re(
@@ -71,8 +71,7 @@ class NewgroundsExtractor(Extractor):
                 if "_multi" in post:
                     for data in post["_multi"]:
                         post["num"] += 1
-                        post["_index"] = "{}_{:>02}".format(
-                            post["index"], post["num"])
+                        post["_index"] = f"{post['index']}_{post['num']:>02}"
                         post.update(data)
                         url = data["image"]
 
@@ -84,8 +83,7 @@ class NewgroundsExtractor(Extractor):
 
                 for url in self._extract_comment_urls(post["_comment"]):
                     post["num"] += 1
-                    post["_index"] = "{}_{:>02}".format(
-                        post["index"], post["num"])
+                    post["_index"] = f"{post['index']}_{post['num']:>02}"
                     url = text.ensure_http_scheme(url)
                     text.nameext_from_url(url, post)
                     yield Message.Url, url, post
@@ -152,7 +150,7 @@ class NewgroundsExtractor(Extractor):
                 data["codehint"] = "      "
             elif result.get("requiresEmailMfa"):
                 email = result.get("obfuscatedEmail")
-                prompt = "Email Verification Code ({}): ".format(email)
+                prompt = f"Email Verification Code ({email}): "
                 data["code"] = self.input(prompt)
                 data["codehint"] = "      "
 
@@ -208,6 +206,7 @@ class NewgroundsExtractor(Extractor):
 
         data["tags"].sort()
         data["user"] = self.user or data["artist"][0]
+        data["slug"] = post_url[post_url.rfind("/")+1:]
         data["post_url"] = post_url
         return data
 
@@ -226,16 +225,18 @@ class NewgroundsExtractor(Extractor):
             "width"      : text.parse_int(full('width="', '"')),
             "height"     : text.parse_int(full('height="', '"')),
         }
+
+        if not data["url"]:
+            data["url"] = extr('<a href="', '"')
+
         index = data["url"].rpartition("/")[2].partition("_")[0]
         data["index"] = text.parse_int(index)
         data["_index"] = index
 
-        image_data = extr("let imageData =", "\n];")
-        if image_data:
+        if image_data := extr("let imageData =", "\n];"):
             data["_multi"] = self._extract_images_multi(image_data)
         else:
-            art_images = extr('<div class="art-images', '\n\t\t</div>')
-            if art_images:
+            if art_images := extr('<div class="art-images', '\n\t\t</div>'):
                 data["_multi"] = self._extract_images_art(art_images, data)
 
         return data
@@ -298,7 +299,7 @@ class NewgroundsExtractor(Extractor):
                 "Accept": "application/json, text/javascript, */*; q=0.01",
                 "X-Requested-With": "XMLHttpRequest",
             }
-            sources = self.request(url, headers=headers).json()["sources"]
+            sources = self.request_json(url, headers=headers)["sources"]
             formats = self._video_formats(sources)
             src = next(formats, "")
             date = text.parse_timestamp(src.rpartition("?")[2])
@@ -346,7 +347,7 @@ class NewgroundsExtractor(Extractor):
             yield fmt[1][0]["src"]
 
     def _pagination(self, kind, pnum=1):
-        url = "{}/{}".format(self.user_root, kind)
+        url = f"{self.user_root}/{kind}"
         params = {
             "page": text.parse_int(pnum, 1),
             "isAjaxRequest": "1",
@@ -368,7 +369,7 @@ class NewgroundsExtractor(Extractor):
                     return
                 if "errors" in data:
                     msg = ", ".join(text.unescape(e) for e in data["errors"])
-                    raise exception.StopExtraction(msg)
+                    raise exception.AbortExtraction(msg)
 
             items = data.get("items")
             if not items:
@@ -399,8 +400,7 @@ class NewgroundsImageExtractor(NewgroundsExtractor):
         NewgroundsExtractor.__init__(self, match)
         if match[2]:
             self.user = match[2]
-            self.post_url = "https://www.newgrounds.com/art/view/{}/{}".format(
-                self.user, match[3])
+            self.post_url = f"{self.root}/art/view/{self.user}/{match[3]}"
         else:
             self.post_url = text.ensure_http_scheme(match[0])
 
@@ -483,7 +483,7 @@ class NewgroundsFavoriteExtractor(NewgroundsExtractor):
         )
 
     def _pagination_favorites(self, kind, pnum=1):
-        url = "{}/favorites/{}".format(self.user_root, kind)
+        url = f"{self.user_root}/favorites/{kind}"
         params = {
             "page": text.parse_int(pnum, 1),
             "isAjaxRequest": "1",
@@ -509,8 +509,7 @@ class NewgroundsFavoriteExtractor(NewgroundsExtractor):
     def _extract_favorites(self, page):
         return [
             self.root + path
-            for path in text.extract_iter(
-                page, 'href="https://www.newgrounds.com', '"')
+            for path in text.extract_iter(page, f'href="{self.root}', '"')
         ]
 
 
@@ -548,8 +547,7 @@ class NewgroundsSearchExtractor(NewgroundsExtractor):
         self.query = text.parse_query(query)
 
     def posts(self):
-        suitabilities = self.query.get("suitabilities")
-        if suitabilities:
+        if suitabilities := self.query.get("suitabilities"):
             data = {"view_suitability_" + s: "on"
                     for s in suitabilities.split(",")}
             self.request(self.root + "/suitabilities",
@@ -570,7 +568,7 @@ class NewgroundsSearchExtractor(NewgroundsExtractor):
         }
 
         while True:
-            data = self.request(url, params=params, headers=headers).json()
+            data = self.request_json(url, params=params, headers=headers)
 
             post_url = None
             for post_url in text.extract_iter(data["content"], 'href="', '"'):

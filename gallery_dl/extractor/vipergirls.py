@@ -25,8 +25,7 @@ class VipergirlsExtractor(Extractor):
     cookies_names = ("vg_userid", "vg_password")
 
     def _init(self):
-        domain = self.config("domain")
-        if domain:
+        if domain := self.config("domain"):
             pos = domain.find("://")
             if pos >= 0:
                 self.root = domain.rstrip("/")
@@ -45,8 +44,7 @@ class VipergirlsExtractor(Extractor):
         forum_title = root[1].attrib["title"]
         thread_title = root[2].attrib["title"]
 
-        like = self.config("like")
-        if like:
+        if like := self.config("like"):
             user_hash = root[0].get("hash")
             if len(user_hash) < 16:
                 self.log.warning("Login required to like posts")
@@ -88,7 +86,7 @@ class VipergirlsExtractor(Extractor):
     def _login_impl(self, username, password):
         self.log.info("Logging in as %s", username)
 
-        url = "{}/login.php?do=login".format(self.root)
+        url = f"{self.root}/login.php?do=login"
         data = {
             "vb_login_username": username,
             "vb_login_password": password,
@@ -127,7 +125,7 @@ class VipergirlsThreadExtractor(VipergirlsExtractor):
         self.thread_id, self.page = match.groups()
 
     def posts(self):
-        url = "{}/vr.php?t={}".format(self.root, self.thread_id)
+        url = f"{self.root}/vr.php?t={self.thread_id}"
         return self.request_xml(url)
 
 
@@ -144,5 +142,5 @@ class VipergirlsPostExtractor(VipergirlsExtractor):
         self.page = 0
 
     def posts(self):
-        url = "{}/vr.php?p={}".format(self.root, self.post_id)
+        url = f"{self.root}/vr.php?p={self.post_id}"
         return self.request_xml(url)

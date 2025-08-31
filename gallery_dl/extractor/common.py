@@ -36,6 +36,7 @@ class Extractor():
     directory_fmt = ("{category}",)
     filename_fmt = "{filename}.{extension}"
     archive_fmt = ""
+    status = 0
     root = ""
     cookies_domain = ""
     cookies_index = 0
@@ -57,7 +58,12 @@ class Extractor():
         self.kwdict = {}
 
         if self.category in CATEGORY_MAP:
-            self.category = CATEGORY_MAP[self.category]
+            catsub = f"{self.category}:{self.subcategory}"
+            if catsub in CATEGORY_MAP:
+                self.category, self.subcategory = CATEGORY_MAP[catsub]
+            else:
+                self.category = CATEGORY_MAP[self.category]
+
         self._cfgpath = ("extractor", self.category, self.subcategory)
         self._parentdir = ""
 
@@ -130,16 +136,15 @@ class Extractor():
             if first:
                 first = False
                 values = config.accumulate(extr + path, key)
-            else:
-                conf = config.get(extr, path[0])
-                if conf:
-                    values[:0] = config.accumulate(
-                        (self.subcategory,), key, conf=conf)
+            elif conf := config.get(extr, path[0]):
+                values[:0] = config.accumulate(
+                    (self.subcategory,), key, conf=conf)
+
         return values
 
-    def request(self, url, method="GET", session=None,
-                retries=None, retry_codes=None, encoding=None,
-                fatal=True, notfound=None, **kwargs):
+    def request(self, url, method="GET", session=None, fatal=True,
+                retries=None, retry_codes=None, expected=(), interval=True,
+                encoding=None, notfound=None, **kwargs):
         if session is None:
             session = self.session
         if retries is None:
@@ -154,20 +159,18 @@ class Extractor():
             kwargs["verify"] = self._verify
 
         if "json" in kwargs:
-            json = kwargs["json"]
-            if json is not None:
+            if (json := kwargs["json"]) is not None:
                 kwargs["data"] = util.json_dumps(json).encode()
                 del kwargs["json"]
-                headers = kwargs.get("headers")
-                if headers:
+                if headers := kwargs.get("headers"):
                     headers["Content-Type"] = "application/json"
                 else:
                     kwargs["headers"] = {"Content-Type": "application/json"}
 
-        response = None
+        response = challenge = None
         tries = 1
 
-        if self._interval:
+        if self._interval and interval:
             seconds = (self._interval() -
                        (time.time() - Extractor.request_timestamp))
             if seconds > 0.0:
@@ -181,7 +184,7 @@ class Extractor():
                     reason = exc.args[0].reason
                     cls = reason.__class__.__name__
                     pre, _, err = str(reason.args[-1]).partition(":")
-                    msg = " {}: {}".format(cls, (err or pre).lstrip())
+                    msg = f" {cls}: {(err or pre).lstrip()}"
                 except Exception:
                     msg = exc
                 code = 0
@@ -199,6 +202,7 @@ class Extractor():
                     self._dump_response(response)
                 if (
                     code < 400 or
+                    code in expected or
                     code < 500 and (
                         not fatal and code != 429 or fatal is None) or
                     fatal is ...
@@ -207,10 +211,10 @@ class Extractor():
                         response.encoding = encoding
                     return response
                 if notfound and code == 404:
+                    self.status |= exception.NotFoundError.code
                     raise exception.NotFoundError(notfound)
 
-                msg = "'{} {}' for '{}'".format(
-                    code, response.reason, response.url)
+                msg = f"'{code} {response.reason}' for '{response.url}'"
 
                 challenge = util.detect_challenge(response)
                 if challenge is not None:
@@ -247,7 +251,13 @@ class Extractor():
         if not fatal or fatal is ...:
             self.log.warning(msg)
             return util.NullResponse(url, msg)
-        raise exception.HttpError(msg, response)
+
+        if challenge is None:
+            exc = exception.HttpError(msg, response)
+        else:
+            exc = exception.ChallengeError(challenge, response)
+        self.status |= exc.code
+        raise exc
 
     def request_location(self, url, **kwargs):
         kwargs.setdefault("method", "HEAD")
@@ -255,20 +265,27 @@ class Extractor():
         return self.request(url, **kwargs).headers.get("location", "")
 
     def request_json(self, url, **kwargs):
+        response = self.request(url, **kwargs)
+
         try:
-            return util.json_loads(self.request(url, **kwargs).text)
+            return util.json_loads(response.text)
         except Exception as exc:
             fatal = kwargs.get("fatal", True)
             if not fatal or fatal is ...:
-                self.log.warning("%s: %s", exc.__class__.__name__, exc)
+                if challenge := util.detect_challenge(response):
+                    self.log.warning(challenge)
+                else:
+                    self.log.warning("%s: %s", exc.__class__.__name__, exc)
                 return {}
             raise
 
     def request_xml(self, url, xmlns=True, **kwargs):
-        text = self.request(url, **kwargs).text
+        response = self.request(url, **kwargs)
 
-        if not xmlns:
-            text = text.replace(" xmlns=", " ns=")
+        if xmlns:
+            text = response.text
+        else:
+            text = response.text.replace(" xmlns=", " ns=")
 
         parser = ElementTree.XMLParser()
         try:
@@ -277,7 +294,10 @@ class Extractor():
         except Exception as exc:
             fatal = kwargs.get("fatal", True)
             if not fatal or fatal is ...:
-                self.log.warning("%s: %s", exc.__class__.__name__, exc)
+                if challenge := util.detect_challenge(response):
+                    self.log.warning(challenge)
+                else:
+                    self.log.warning("%s: %s", exc.__class__.__name__, exc)
                 return ElementTree.Element("")
             raise
 
@@ -306,7 +326,7 @@ class Extractor():
 
         if reason:
             t = datetime.fromtimestamp(until).time()
-            isotime = "{:02}:{:02}:{:02}".format(t.hour, t.minute, t.second)
+            isotime = f"{t.hour:02}:{t.minute:02}:{t.second:02}"
             self.log.info("Waiting until %s (%s)", isotime, reason)
         time.sleep(seconds)
 
@@ -331,8 +351,8 @@ class Extractor():
         if input is None:
             input = output.TTY_STDIN
         if not input:
-            raise exception.StopExtraction(
-                "User input required (%s)", prompt.strip(" :"))
+            raise exception.AbortExtraction(
+                f"User input required ({prompt.strip(' :')})")
 
     def _get_auth_info(self):
         """Return authentication information as (username, password) tuple"""
@@ -402,31 +422,31 @@ class Extractor():
             elif platform == "linux":
                 platform = "X11; Linux x86_64"
             elif platform == "macos":
-                platform = "Macintosh; Intel Mac OS X 11.5"
+                platform = "Macintosh; Intel Mac OS X 15.5"
 
             if browser == "chrome":
                 if platform.startswith("Macintosh"):
-                    platform = platform.replace(".", "_") + "_2"
+                    platform = platform.replace(".", "_")
             else:
                 browser = "firefox"
 
-            for key, value in HTTP_HEADERS[browser]:
+            for key, value in HEADERS[browser]:
                 if value and "{}" in value:
-                    headers[key] = value.format(platform)
+                    headers[key] = value.replace("{}", platform)
                 else:
                     headers[key] = value
 
             ssl_options |= (ssl.OP_NO_SSLv2 | ssl.OP_NO_SSLv3 |
                             ssl.OP_NO_TLSv1 | ssl.OP_NO_TLSv1_1)
-            ssl_ciphers = SSL_CIPHERS[browser]
+            ssl_ciphers = CIPHERS[browser]
         else:
             headers["User-Agent"] = self.useragent
             headers["Accept"] = "*/*"
             headers["Accept-Language"] = "en-US,en;q=0.5"
 
             ssl_ciphers = self.ciphers
-            if ssl_ciphers is not None and ssl_ciphers in SSL_CIPHERS:
-                ssl_ciphers = SSL_CIPHERS[ssl_ciphers]
+            if ssl_ciphers is not None and ssl_ciphers in CIPHERS:
+                ssl_ciphers = CIPHERS[ssl_ciphers]
 
         if BROTLI:
             headers["Accept-Encoding"] = "gzip, deflate, br"
@@ -435,44 +455,42 @@ class Extractor():
         if ZSTD:
             headers["Accept-Encoding"] += ", zstd"
 
-        referer = self.config("referer", self.referer)
-        if referer:
+        if referer := self.config("referer", self.referer):
             if isinstance(referer, str):
                 headers["Referer"] = referer
             elif self.root:
                 headers["Referer"] = self.root + "/"
 
         custom_ua = self.config("user-agent")
-        if custom_ua is None or custom_ua == "auto":
+        if not custom_ua or custom_ua == "auto":
             pass
         elif custom_ua == "browser":
-            headers["User-Agent"] = _browser_useragent()
+            headers["User-Agent"] = _browser_useragent(None)
+        elif custom_ua[0] == "@":
+            headers["User-Agent"] = _browser_useragent(custom_ua[1:])
         elif self.useragent is Extractor.useragent and not self.browser or \
                 custom_ua is not config.get(("extractor",), "user-agent"):
             headers["User-Agent"] = custom_ua
 
-        custom_headers = self.config("headers")
-        if custom_headers:
+        if custom_headers := self.config("headers"):
             if isinstance(custom_headers, str):
-                if custom_headers in HTTP_HEADERS:
-                    custom_headers = HTTP_HEADERS[custom_headers]
+                if custom_headers in HEADERS:
+                    custom_headers = HEADERS[custom_headers]
                 else:
                     self.log.error("Invalid 'headers' value '%s'",
                                    custom_headers)
                     custom_headers = ()
             headers.update(custom_headers)
 
-        custom_ciphers = self.config("ciphers")
-        if custom_ciphers:
+        if custom_ciphers := self.config("ciphers"):
             if isinstance(custom_ciphers, list):
                 ssl_ciphers = ":".join(custom_ciphers)
-            elif custom_ciphers in SSL_CIPHERS:
-                ssl_ciphers = SSL_CIPHERS[custom_ciphers]
+            elif custom_ciphers in CIPHERS:
+                ssl_ciphers = CIPHERS[custom_ciphers]
             else:
                 ssl_ciphers = custom_ciphers
 
-        source_address = self.config("source-address")
-        if source_address:
+        if source_address := self.config("source-address"):
             if isinstance(source_address, str):
                 source_address = (source_address, 0)
             else:
@@ -506,10 +524,8 @@ class Extractor():
         if self.cookies_domain is None:
             return
 
-        cookies = self.config("cookies")
-        if cookies:
-            select = self.config("cookies-select")
-            if select:
+        if cookies := self.config("cookies"):
+            if select := self.config("cookies-select"):
                 if select == "rotate":
                     cookies = cookies[self.cookies_index % len(cookies)]
                     Extractor.cookies_index += 1
@@ -526,6 +542,10 @@ class Extractor():
             try:
                 with open(path) as fp:
                     cookies = util.cookiestxt_load(fp)
+            except ValueError as exc:
+                self.log.warning("cookies: Invalid Netscape cookies.txt file "
+                                 "'%s' (%s: %s)",
+                                 cookies_source, exc.__class__.__name__, exc)
             except Exception as exc:
                 self.log.warning("cookies: Failed to load '%s' (%s: %s)",
                                  cookies_source, exc.__class__.__name__, exc)
@@ -539,7 +559,7 @@ class Extractor():
 
         elif isinstance(cookies_source, (list, tuple)):
             key = tuple(cookies_source)
-            cookies = _browser_cookies.get(key)
+            cookies = CACHE_COOKIES.get(key)
 
             if cookies is None:
                 from ..cookies import load_cookies
@@ -549,7 +569,7 @@ class Extractor():
                     self.log.warning("cookies: %s", exc)
                     cookies = ()
                 else:
-                    _browser_cookies[key] = cookies
+                    CACHE_COOKIES[key] = cookies
             else:
                 self.log.debug("cookies: Using cached cookies from %s", key)
 
@@ -696,10 +716,8 @@ class Extractor():
             Extractor._dump_sanitize = util.re_compile(
                 r"[\\\\|/<>:\"?*&=#]+").sub
 
-        fname = "{:>02}_{}".format(
-            Extractor._dump_index,
-            Extractor._dump_sanitize('_', response.url),
-        )
+        fname = (f"{Extractor._dump_index:>02}_"
+                 f"{Extractor._dump_sanitize('_', response.url)}")
 
         if util.WINDOWS:
             path = os.path.abspath(fname)[:255]
@@ -871,11 +889,15 @@ class Dispatch():
     def initialize(self):
         pass
 
-    def _dispatch_extractors(self, extractor_data, default=()):
+    def _dispatch_extractors(self, extractor_data, default=(), alt=None):
         extractors = {
             data[0].subcategory: data
             for data in extractor_data
         }
+
+        if alt is not None:
+            for sub, sub_alt in alt:
+                extractors[sub_alt] = extractors[sub]
 
         include = self.config("include", default) or ()
         if include == "all":
@@ -883,15 +905,15 @@ class Dispatch():
         elif isinstance(include, str):
             include = include.replace(" ", "").split(",")
 
-        result = [(Message.Version, 1)]
+        results = [(Message.Version, 1)]
         for category in include:
             try:
                 extr, url = extractors[category]
             except KeyError:
                 self.log.warning("Invalid include '%s'", category)
             else:
-                result.append((Message.Queue, url, {"_extractor": extr}))
-        return iter(result)
+                results.append((Message.Queue, url, {"_extractor": extr}))
+        return iter(results)
 
 
 class AsynchronousMixin():
@@ -953,8 +975,7 @@ class BaseExtractor(Extractor):
 
     @classmethod
     def update(cls, instances):
-        extra_instances = config.get(("extractor",), cls.basecategory)
-        if extra_instances:
+        if extra_instances := config.get(("extractor",), cls.basecategory):
             for category, info in extra_instances.items():
                 if isinstance(info, dict) and "root" in info:
                     instances[category] = info
@@ -962,8 +983,7 @@ class BaseExtractor(Extractor):
         pattern_list = []
         instance_list = cls.instances = []
         for category, info in instances.items():
-            root = info["root"]
-            if root:
+            if root := info["root"]:
                 root = root.rstrip("/")
             instance_list.append((category, root, info))
 
@@ -1001,7 +1021,7 @@ def _build_requests_adapter(
 
     key = (ssl_options, ssl_ciphers, ssl_ctx, source_address)
     try:
-        return _adapter_cache[key]
+        return CACHE_ADAPTERS[key]
     except KeyError:
         pass
 
@@ -1024,24 +1044,36 @@ def _build_requests_adapter(
     else:
         ssl_context = None
 
-    adapter = _adapter_cache[key] = RequestsAdapter(
+    adapter = CACHE_ADAPTERS[key] = RequestsAdapter(
         ssl_context, source_address)
     return adapter
 
 
-@cache.cache(maxage=86400)
-def _browser_useragent():
+@cache.cache(maxage=86400, keyarg=0)
+def _browser_useragent(browser):
     """Get User-Agent header from default browser"""
     import webbrowser
-    import socket
+    try:
+        open = webbrowser.get(browser).open
+    except webbrowser.Error:
+        if not browser:
+            raise
+        import shutil
+        if not (browser := shutil.which(browser)):
+            raise
 
+        def open(url):
+            util.Popen((browser, url),
+                       start_new_session=False if util.WINDOWS else True)
+
+    import socket
     server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     server.bind(("127.0.0.1", 0))
     server.listen(1)
 
     host, port = server.getsockname()
-    webbrowser.open("http://{}:{}/user-agent".format(host, port))
+    open(f"http://{host}:{port}/user-agent")
 
     client = server.accept()[0]
     server.close()
@@ -1060,83 +1092,131 @@ def _browser_useragent():
     return useragent.decode()
 
 
-_adapter_cache = {}
-_browser_cookies = {}
+CACHE_ADAPTERS = {}
+CACHE_COOKIES = {}
 CATEGORY_MAP = ()
 
-HTTP_HEADERS = {
-    "firefox": (
-        ("User-Agent", "Mozilla/5.0 ({}; "
-                       "rv:128.0) Gecko/20100101 Firefox/128.0"),
-        ("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,"
-                   "image/avif,image/webp,image/png,image/svg+xml,*/*;q=0.8"),
-        ("Accept-Language", "en-US,en;q=0.5"),
-        ("Accept-Encoding", None),
-        ("Referer", None),
-        ("Connection", "keep-alive"),
-        ("Upgrade-Insecure-Requests", "1"),
-        ("Cookie", None),
-        ("Sec-Fetch-Dest", "empty"),
-        ("Sec-Fetch-Mode", "no-cors"),
-        ("Sec-Fetch-Site", "same-origin"),
-        ("TE", "trailers"),
-    ),
-    "chrome": (
-        ("Connection", "keep-alive"),
-        ("Upgrade-Insecure-Requests", "1"),
-        ("User-Agent", "Mozilla/5.0 ({}) AppleWebKit/537.36 (KHTML, "
-                       "like Gecko) Chrome/111.0.0.0 Safari/537.36"),
-        ("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,"
-                   "image/avif,image/webp,image/apng,*/*;q=0.8,"
-                   "application/signed-exchange;v=b3;q=0.7"),
-        ("Referer", None),
-        ("Sec-Fetch-Site", "same-origin"),
-        ("Sec-Fetch-Mode", "no-cors"),
-        ("Sec-Fetch-Dest", "empty"),
-        ("Accept-Encoding", None),
-        ("Accept-Language", "en-US,en;q=0.9"),
-        ("cookie", None),
-        ("content-length", None),
-    ),
+
+HEADERS_FIREFOX_140 = (
+    ("User-Agent", "Mozilla/5.0 ({}; rv:140.0) Gecko/20100101 Firefox/140.0"),
+    ("Accept", "text/html,application/xhtml+xml,"
+               "application/xml;q=0.9,*/*;q=0.8"),
+    ("Accept-Language", "en-US,en;q=0.5"),
+    ("Accept-Encoding", None),
+    ("Connection", "keep-alive"),
+    ("Content-Type", None),
+    ("Content-Length", None),
+    ("Referer", None),
+    ("Origin", None),
+    ("Cookie", None),
+    ("Sec-Fetch-Dest", "empty"),
+    ("Sec-Fetch-Mode", "cors"),
+    ("Sec-Fetch-Site", "same-origin"),
+    ("TE", "trailers"),
+)
+HEADERS_FIREFOX_128 = (
+    ("User-Agent", "Mozilla/5.0 ({}; rv:128.0) Gecko/20100101 Firefox/128.0"),
+    ("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,"
+               "image/avif,image/webp,image/png,image/svg+xml,*/*;q=0.8"),
+    ("Accept-Language", "en-US,en;q=0.5"),
+    ("Accept-Encoding", None),
+    ("Referer", None),
+    ("Connection", "keep-alive"),
+    ("Upgrade-Insecure-Requests", "1"),
+    ("Cookie", None),
+    ("Sec-Fetch-Dest", "empty"),
+    ("Sec-Fetch-Mode", "no-cors"),
+    ("Sec-Fetch-Site", "same-origin"),
+    ("TE", "trailers"),
+)
+HEADERS_CHROMIUM_138 = (
+    ("Connection", "keep-alive"),
+    ("sec-ch-ua", '"Not)A;Brand";v="8", "Chromium";v="138"'),
+    ("sec-ch-ua-mobile", "?0"),
+    ("sec-ch-ua-platform", '"Linux"'),
+    ("Upgrade-Insecure-Requests", "1"),
+    ("User-Agent", "Mozilla/5.0 ({}) AppleWebKit/537.36 (KHTML, "
+                   "like Gecko) Chrome/138.0.0.0 Safari/537.36"),
+    ("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,"
+               "image/avif,image/webp,image/apng,*/*;q=0.8,"
+               "application/signed-exchange;v=b3;q=0.7"),
+    ("Referer", None),
+    ("Sec-Fetch-Site", "same-origin"),
+    ("Sec-Fetch-Mode", "no-cors"),
+    #  ("Sec-Fetch-User", "?1"),
+    ("Sec-Fetch-Dest", "empty"),
+    ("Accept-Encoding", None),
+    ("Accept-Language", "en-US,en;q=0.9"),
+)
+HEADERS_CHROMIUM_111 = (
+    ("Connection", "keep-alive"),
+    ("Upgrade-Insecure-Requests", "1"),
+    ("User-Agent", "Mozilla/5.0 ({}) AppleWebKit/537.36 (KHTML, "
+                   "like Gecko) Chrome/111.0.0.0 Safari/537.36"),
+    ("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,"
+               "image/avif,image/webp,image/apng,*/*;q=0.8,"
+               "application/signed-exchange;v=b3;q=0.7"),
+    ("Referer", None),
+    ("Sec-Fetch-Site", "same-origin"),
+    ("Sec-Fetch-Mode", "no-cors"),
+    ("Sec-Fetch-Dest", "empty"),
+    ("Accept-Encoding", None),
+    ("Accept-Language", "en-US,en;q=0.9"),
+    ("cookie", None),
+    ("content-length", None),
+)
+HEADERS = {
+    "firefox"    : HEADERS_FIREFOX_140,
+    "firefox/140": HEADERS_FIREFOX_140,
+    "firefox/128": HEADERS_FIREFOX_128,
+    "chrome"     : HEADERS_CHROMIUM_138,
+    "chrome/138" : HEADERS_CHROMIUM_138,
+    "chrome/111" : HEADERS_CHROMIUM_111,
 }
 
-SSL_CIPHERS = {
-    "firefox": (
-        "TLS_AES_128_GCM_SHA256:"
-        "TLS_CHACHA20_POLY1305_SHA256:"
-        "TLS_AES_256_GCM_SHA384:"
-        "ECDHE-ECDSA-AES128-GCM-SHA256:"
-        "ECDHE-RSA-AES128-GCM-SHA256:"
-        "ECDHE-ECDSA-CHACHA20-POLY1305:"
-        "ECDHE-RSA-CHACHA20-POLY1305:"
-        "ECDHE-ECDSA-AES256-GCM-SHA384:"
-        "ECDHE-RSA-AES256-GCM-SHA384:"
-        "ECDHE-ECDSA-AES256-SHA:"
-        "ECDHE-ECDSA-AES128-SHA:"
-        "ECDHE-RSA-AES128-SHA:"
-        "ECDHE-RSA-AES256-SHA:"
-        "AES128-GCM-SHA256:"
-        "AES256-GCM-SHA384:"
-        "AES128-SHA:"
-        "AES256-SHA"
-    ),
-    "chrome": (
-        "TLS_AES_128_GCM_SHA256:"
-        "TLS_AES_256_GCM_SHA384:"
-        "TLS_CHACHA20_POLY1305_SHA256:"
-        "ECDHE-ECDSA-AES128-GCM-SHA256:"
-        "ECDHE-RSA-AES128-GCM-SHA256:"
-        "ECDHE-ECDSA-AES256-GCM-SHA384:"
-        "ECDHE-RSA-AES256-GCM-SHA384:"
-        "ECDHE-ECDSA-CHACHA20-POLY1305:"
-        "ECDHE-RSA-CHACHA20-POLY1305:"
-        "ECDHE-RSA-AES128-SHA:"
-        "ECDHE-RSA-AES256-SHA:"
-        "AES128-GCM-SHA256:"
-        "AES256-GCM-SHA384:"
-        "AES128-SHA:"
-        "AES256-SHA"
-    ),
+CIPHERS_FIREFOX = (
+    "TLS_AES_128_GCM_SHA256:"
+    "TLS_CHACHA20_POLY1305_SHA256:"
+    "TLS_AES_256_GCM_SHA384:"
+    "ECDHE-ECDSA-AES128-GCM-SHA256:"
+    "ECDHE-RSA-AES128-GCM-SHA256:"
+    "ECDHE-ECDSA-CHACHA20-POLY1305:"
+    "ECDHE-RSA-CHACHA20-POLY1305:"
+    "ECDHE-ECDSA-AES256-GCM-SHA384:"
+    "ECDHE-RSA-AES256-GCM-SHA384:"
+    "ECDHE-ECDSA-AES256-SHA:"
+    "ECDHE-ECDSA-AES128-SHA:"
+    "ECDHE-RSA-AES128-SHA:"
+    "ECDHE-RSA-AES256-SHA:"
+    "AES128-GCM-SHA256:"
+    "AES256-GCM-SHA384:"
+    "AES128-SHA:"
+    "AES256-SHA"
+)
+CIPHERS_CHROMIUM = (
+    "TLS_AES_128_GCM_SHA256:"
+    "TLS_AES_256_GCM_SHA384:"
+    "TLS_CHACHA20_POLY1305_SHA256:"
+    "ECDHE-ECDSA-AES128-GCM-SHA256:"
+    "ECDHE-RSA-AES128-GCM-SHA256:"
+    "ECDHE-ECDSA-AES256-GCM-SHA384:"
+    "ECDHE-RSA-AES256-GCM-SHA384:"
+    "ECDHE-ECDSA-CHACHA20-POLY1305:"
+    "ECDHE-RSA-CHACHA20-POLY1305:"
+    "ECDHE-RSA-AES128-SHA:"
+    "ECDHE-RSA-AES256-SHA:"
+    "AES128-GCM-SHA256:"
+    "AES256-GCM-SHA384:"
+    "AES128-SHA:"
+    "AES256-SHA"
+)
+CIPHERS = {
+    "firefox"    : CIPHERS_FIREFOX,
+    "firefox/140": CIPHERS_FIREFOX,
+    "firefox/128": CIPHERS_FIREFOX,
+    "chrome"     : CIPHERS_CHROMIUM,
+    "chrome/138" : CIPHERS_CHROMIUM,
+    "chrome/111" : CIPHERS_CHROMIUM,
 }
 
 

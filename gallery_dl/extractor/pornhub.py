@@ -27,7 +27,7 @@ class PornhubExtractor(Extractor):
         if "/" not in path:
             path += "/public"
 
-        url = "{}/{}/{}/ajax".format(self.root, user, path)
+        url = f"{self.root}/{user}/{path}/ajax"
         params = {"page": 1}
         headers = {
             "Referer": url[:-5],
@@ -40,8 +40,7 @@ class PornhubExtractor(Extractor):
                 allow_redirects=False)
 
             if 300 <= response.status_code < 400:
-                url = "{}{}/{}/ajax".format(
-                    self.root, response.headers["location"], path)
+                url = f"{self.root}{response.headers['location']}/{path}/ajax"
                 continue
 
             yield response.text
@@ -82,11 +81,11 @@ class PornhubGalleryExtractor(PornhubExtractor):
             yield Message.Url, url, text.nameext_from_url(url, image)
 
     def metadata(self):
-        url = "{}/album/{}".format(
-            self.root, self.gallery_id)
+        url = f"{self.root}/album/{self.gallery_id}"
         extr = text.extract_from(self.request(url).text)
 
         title = extr("<title>", "</title>")
+        self._token = extr('name="token" value="', '"')
         score = extr('<div id="albumGreenBar" style="width:', '"')
         views = extr('<div id="viewsPhotAlbumCounter">', '<')
         tags = extr('<div id="photoTagsBox"', '<script')
@@ -105,13 +104,12 @@ class PornhubGalleryExtractor(PornhubExtractor):
         }
 
     def images(self):
-        url = "{}/album/show_album_json?album={}".format(
-            self.root, self.gallery_id)
-        response = self.request(url)
+        url = f"{self.root}/api/v1/album/{self.gallery_id}/show_album_json"
+        params = {"token": self._token}
+        data = self.request_json(url, params=params)
 
-        if response.content == b"Permission denied":
+        if not (images := data.get("photos")):
             raise exception.AuthorizationError()
-        images = response.json()
         key = end = self._first
 
         results = []
@@ -144,7 +142,7 @@ class PornhubGifExtractor(PornhubExtractor):
         self.gallery_id = match[1]
 
     def items(self):
-        url = "{}/gif/{}".format(self.root, self.gallery_id)
+        url = f"{self.root}/gif/{self.gallery_id}"
         extr = text.extract_from(self.request(url).text)
 
         gif = {
@@ -170,7 +168,7 @@ class PornhubUserExtractor(Dispatch, PornhubExtractor):
     example = "https://www.pornhub.com/model/USER"
 
     def items(self):
-        base = "{}/{}/".format(self.root, self.groups[0])
+        base = f"{self.root}/{self.groups[0]}/"
         return self._dispatch_extractors((
             (PornhubPhotosExtractor, base + "photos"),
             (PornhubGifsExtractor  , base + "gifs"),

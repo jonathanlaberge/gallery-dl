@@ -57,7 +57,7 @@ class SimplyhentaiGalleryExtractor(GalleryExtractor):
     def images(self, _):
         url = self.page_url + "/all-pages"
         headers = {"Accept": "application/json"}
-        images = self.request(url, headers=headers).json()
+        images = self.request_json(url, headers=headers)
         return [
             (
                 urls["full"].replace("/giant_thumb_", "/"),
@@ -90,8 +90,7 @@ class SimplyhentaiImageExtractor(Extractor):
         url = extr('&quot;image&quot;:&quot;'  , '&')
         url = extr("&quot;content&quot;:&quot;", "&") or url
 
-        tags = text.extr(descr, " tagged with ", " online for free ")
-        if tags:
+        if tags := text.extr(descr, " tagged with ", " online for free "):
             tags = tags.split(", ")
             tags[-1] = tags[-1].partition(" ")[2]
         else:

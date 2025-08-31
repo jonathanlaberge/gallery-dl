@@ -40,8 +40,7 @@ class FanboxExtractor(Extractor):
         }
         self.embeds = self.config("embeds", True)
 
-        includes = self.config("metadata")
-        if includes:
+        if includes := self.config("metadata"):
             if isinstance(includes, str):
                 includes = includes.split(",")
             elif not isinstance(includes, (list, tuple)):
@@ -141,8 +140,7 @@ class FanboxExtractor(Extractor):
             try:
                 post["plan"] = plans[fee]
             except KeyError:
-                fees = [f for f in plans if f >= fee]
-                if fees:
+                if fees := [f for f in plans if f >= fee]:
                     plan = plans[min(fees)]
                 else:
                     plan = plans[0].copy()
@@ -217,8 +215,7 @@ class FanboxExtractor(Extractor):
 
     def _get_urls_from_post(self, content_body, post):
         num = 0
-        cover_image = post.get("coverImageUrl")
-        if cover_image:
+        if cover_image := post.get("coverImageUrl"):
             cover_image = util.re("/c/[0-9a-z_]+").sub("", cover_image)
             final_post = post.copy()
             final_post["isCoverImage"] = True
@@ -337,10 +334,10 @@ class FanboxExtractor(Extractor):
         elif provider == "twitter":
             url = "https://twitter.com/_/status/"+content_id
         elif provider == "google_forms":
-            templ = "https://docs.google.com/forms/d/e/{}/viewform?usp=sf_link"
-            url = templ.format(content_id)
+            url = (f"https://docs.google.com/forms/d/e/"
+                   f"{content_id}/viewform?usp=sf_link")
         else:
-            self.log.warning("service not recognized: {}".format(provider))
+            self.log.warning(f"service not recognized: {provider}")
 
         if url:
             final_post["embed"] = embed

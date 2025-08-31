@@ -28,8 +28,7 @@ class ImagechestGalleryExtractor(GalleryExtractor):
         GalleryExtractor.__init__(self, match, url)
 
     def _init(self):
-        access_token = self.config("access-token")
-        if access_token:
+        if access_token := self.config("access-token"):
             self.api = ImagechestAPI(self, access_token)
             self.page_url = None
             self.metadata = self._metadata_api
@@ -97,7 +96,7 @@ class ImagechestUserExtractor(Extractor):
 
         while True:
             try:
-                data = self.request(url, params=params).json()["data"]
+                data = self.request_json(url, params=params)["data"]
             except (TypeError, KeyError):
                 return
 
@@ -152,4 +151,4 @@ class ImagechestAPI():
 
             else:
                 self.extractor.log.debug(response.text)
-                raise exception.StopExtraction("API request failed")
+                raise exception.AbortExtraction("API request failed")

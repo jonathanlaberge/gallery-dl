@@ -26,14 +26,16 @@ def construct_YoutubeDL(module, obj, user_opts, system_opts=None):
     opts = argv = None
     config = obj.config
 
-    cfg = config("config-file")
-    if cfg:
+    if not config("deprecations"):
+        module.YoutubeDL.deprecated_feature = util.false
+        module.YoutubeDL.deprecation_warning = util.false
+
+    if cfg := config("config-file"):
         with open(util.expand_path(cfg)) as fp:
             contents = fp.read()
         argv = shlex.split(contents, comments=True)
 
-    cmd = config("cmdline-args")
-    if cmd:
+    if cmd := config("cmdline-args"):
         if isinstance(cmd, str):
             cmd = shlex.split(cmd)
         argv = (argv + cmd) if argv else cmd
@@ -41,7 +43,7 @@ def construct_YoutubeDL(module, obj, user_opts, system_opts=None):
     try:
         opts = parse_command_line(module, argv) if argv else user_opts
     except SystemExit:
-        raise exception.StopExtraction("Invalid command-line option")
+        raise exception.AbortExtraction("Invalid command-line option")
 
     if opts.get("format") is None:
         opts["format"] = config("format")
@@ -49,27 +51,28 @@ def construct_YoutubeDL(module, obj, user_opts, system_opts=None):
         opts["nopart"] = not config("part", True)
     if opts.get("updatetime") is None:
         opts["updatetime"] = config("mtime", True)
-    if opts.get("ratelimit") is None:
-        rate = config("rate")
-        if rate:
-            func = util.build_selection_func(rate, 0, text.parse_bytes)
-            rmax = func.args[1] if hasattr(func, "args") else func()
-            opts["ratelimit"] = rmax or None
-        else:
-            opts["ratelimit"] = None
     if opts.get("min_filesize") is None:
         opts["min_filesize"] = text.parse_bytes(config("filesize-min"), None)
     if opts.get("max_filesize") is None:
         opts["max_filesize"] = text.parse_bytes(config("filesize-max"), None)
+    if opts.get("ratelimit") is None:
+        if rate := config("rate"):
+            func = util.build_selection_func(rate, 0, text.parse_bytes)
+            if hasattr(func, "args"):
+                opts["__gdl_ratelimit_func"] = func
+            else:
+                opts["ratelimit"] = func() or None
+        else:
+            opts["ratelimit"] = None
 
-    raw_opts = config("raw-options")
-    if raw_opts:
+    if raw_opts := config("raw-options"):
         opts.update(raw_opts)
     if config("logging", True):
         opts["logger"] = obj.log
     if system_opts:
         opts.update(system_opts)
 
+    opts["__gdl_initialize"] = True
     return module.YoutubeDL(opts)
 
 
@@ -146,7 +149,7 @@ def parse_command_line(module, argv):
         if name not in compat_opts:
             return False
         compat_opts.discard(name)
-        compat_opts.update(["*%s" % name])
+        compat_opts.update([f"*{name}"])
         return True
 
     def set_default_compat(
@@ -211,7 +214,7 @@ def parse_command_line(module, argv):
                 if "pre_process" not in parse_metadata:
                     parse_metadata["pre_process"] = []
                 parse_metadata["pre_process"].append(
-                    "title:%s" % opts.metafromtitle)
+                    f"title:{opts.metafromtitle}")
             opts.parse_metadata = {
                 k: list(itertools.chain.from_iterable(map(
                         metadataparser_actions, v)))
@@ -221,7 +224,7 @@ def parse_command_line(module, argv):
             if parse_metadata is None:
                 parse_metadata = []
             if opts.metafromtitle is not None:
-                parse_metadata.append("title:%s" % opts.metafromtitle)
+                parse_metadata.append(f"title:{opts.metafromtitle}")
             opts.parse_metadata = list(itertools.chain.from_iterable(map(
                 metadataparser_actions, parse_metadata)))
 
@@ -255,8 +258,7 @@ def parse_command_line(module, argv):
         None if opts.match_filter is None
         else module.match_filter_func(opts.match_filter))
 
-    cookiesfrombrowser = getattr(opts, "cookiesfrombrowser", None)
-    if cookiesfrombrowser:
+    if cookiesfrombrowser := getattr(opts, "cookiesfrombrowser", None):
         pattern = util.re(r"""(?x)
             (?P<name>[^+:]+)
             (?:\s*\+\s*(?P<keyring>[^:]+))?

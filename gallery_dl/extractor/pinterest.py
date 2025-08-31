@@ -60,8 +60,7 @@ class PinterestExtractor(Extractor):
                 "closeup_description",
                 "closeup_unified_description",
             ):
-                value = pin.get(key)
-                if value:
+                if value := pin.get(key):
                     pin[key] = value.strip()
 
             yield Message.Directory, pin
@@ -93,8 +92,7 @@ class PinterestExtractor(Extractor):
         if story_pin_data and self.stories:
             return self._extract_story(pin, story_pin_data)
 
-        carousel_data = pin.get("carousel_data")
-        if carousel_data:
+        if carousel_data := pin.get("carousel_data"):
             return self._extract_carousel(pin, carousel_data)
 
         videos = pin.get("videos")
@@ -173,8 +171,8 @@ class PinterestExtractor(Extractor):
 
     def _extract_image(self, page, block):
         sig = block.get("image_signature") or page["image_signature"]
-        url_base = "https://i.pinimg.com/originals/{}/{}/{}/{}.".format(
-            sig[0:2], sig[2:4], sig[4:6], sig)
+        url_base = (f"https://i.pinimg.com/originals"
+                    f"/{sig[0:2]}/{sig[2:4]}/{sig[4:6]}/{sig}.")
         url_jpg = url_base + "jpg"
         url_png = url_base + "png"
         url_webp = url_base + "webp"
@@ -231,7 +229,7 @@ class PinterestBoardExtractor(PinterestExtractor):
     directory_fmt = ("{category}", "{board[owner][username]}", "{board[name]}")
     archive_fmt = "{board[id]}_{id}"
     pattern = (BASE_PATTERN + r"/(?!pin/)([^/?#]+)"
-               "/(?!_saved|_created|pins/)([^/?#]+)/?$")
+               r"/(?!_saved|_created|pins/)([^/?#]+)/?(?:$|\?|#)")
     example = "https://www.pinterest.com/USER/BOARD/"
 
     def __init__(self, match):
@@ -249,7 +247,7 @@ class PinterestBoardExtractor(PinterestExtractor):
         pins = self.api.board_pins(board["id"])
 
         if board["section_count"] and self.config("sections", True):
-            base = "{}{}id:".format(self.root, board["url"])
+            base = f"{self.root}{board['url']}id:"
             data = {"_extractor": PinterestSectionExtractor}
             sections = [(base + section["id"], data)
                         for section in self.api.board_sections(board["id"])]
@@ -270,8 +268,7 @@ class PinterestUserExtractor(PinterestExtractor):
 
     def items(self):
         for board in self.api.boards(self.user):
-            url = board.get("url")
-            if url:
+            if url := board.get("url"):
                 board["_extractor"] = PinterestBoardExtractor
                 yield Message.Queue, self.root + url, board
 
@@ -393,12 +390,19 @@ class PinterestPinitExtractor(PinterestExtractor):
     example = "https://pin.it/abcde"
 
     def items(self):
-        url = "https://api.pinterest.com/url_shortener/{}/redirect/".format(
-            self.groups[0])
+        url = (f"https://api.pinterest.com/url_shortener"
+               f"/{self.groups[0]}/redirect/")
         location = self.request_location(url)
-        if not location or not PinterestPinExtractor.pattern.match(location):
+        if not location:
             raise exception.NotFoundError("pin")
-        yield Message.Queue, location, {"_extractor": PinterestPinExtractor}
+        elif PinterestPinExtractor.pattern.match(location):
+            yield Message.Queue, location, {
+                "_extractor": PinterestPinExtractor}
+        elif PinterestBoardExtractor.pattern.match(location):
+            yield Message.Queue, location, {
+                "_extractor": PinterestBoardExtractor}
+        else:
+            raise exception.NotFoundError("pin")
 
 
 class PinterestAPI():
@@ -520,7 +524,7 @@ class PinterestAPI():
         return self._pagination("BaseSearch", options)
 
     def _call(self, resource, options):
-        url = "{}/resource/{}Resource/get/".format(self.root, resource)
+        url = f"{self.root}/resource/{resource}Resource/get/"
         params = {
             "data"      : util.json_dumps({"options": options}),
             "source_url": "",
@@ -543,7 +547,7 @@ class PinterestAPI():
             resource = self.extractor.subcategory.rpartition("-")[2]
             raise exception.NotFoundError(resource)
         self.extractor.log.debug("Server response: %s", response.text)
-        raise exception.StopExtraction("API request failed")
+        raise exception.AbortExtraction("API request failed")
 
     def _pagination(self, resource, options):
         while True:

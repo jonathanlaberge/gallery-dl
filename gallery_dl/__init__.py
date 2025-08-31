@@ -11,7 +11,7 @@ import logging
 from . import version, config, option, output, extractor, job, util, exception
 
 __author__ = "Mike Fährmann"
-__copyright__ = "Copyright 2014-2023 Mike Fährmann"
+__copyright__ = "Copyright 2014-2025 Mike Fährmann"
 __license__ = "GPLv2"
 __maintainer__ = "Mike Fährmann"
 __email__ = "mike_faehrmann@web.de"
@@ -48,7 +48,7 @@ def main():
             if filename == "/O":
                 filename = "{filename}.{extension}"
             elif filename.startswith("\\f"):
-                filename = "\f" + filename[2:]
+                filename = f"\f{filename[2:]}"
             config.set((), "filename", filename)
         if args.directory is not None:
             config.set((), "base-directory", args.directory)
@@ -56,9 +56,9 @@ def main():
         if args.postprocessors:
             config.set((), "postprocessors", args.postprocessors)
         if args.abort:
-            config.set((), "skip", "abort:" + str(args.abort))
+            config.set((), "skip", f"abort:{args.abort}")
         if args.terminate:
-            config.set((), "skip", "terminate:" + str(args.terminate))
+            config.set((), "skip", f"terminate:{args.terminate}")
         if args.cookies_from_browser:
             browser, _, profile = args.cookies_from_browser.partition(":")
             browser, _, keyring = browser.partition("+")
@@ -78,8 +78,7 @@ def main():
         output.configure_standard_streams()
 
         # signals
-        signals = config.get((), "signals-ignore")
-        if signals:
+        if signals := config.get((), "signals-ignore"):
             import signal
             if isinstance(signals, str):
                 signals = signals.split(",")
@@ -89,6 +88,10 @@ def main():
                     log.warning("signal '%s' is not defined", signal_name)
                 else:
                     signal.signal(signal_num, signal.SIG_IGN)
+
+        if signals := config.get((), "signals-actions"):
+            from . import actions
+            actions.parse_signals(signals)
 
         # enable ANSI escape sequences on Windows
         if util.WINDOWS and config.get(("output",), "ansi", output.COLORS):
@@ -118,14 +121,12 @@ def main():
                 util.compile_expression = util.compile_expression_defaultdict
 
         # format string separator
-        separator = config.get((), "format-separator")
-        if separator:
+        if separator := config.get((), "format-separator"):
             from . import formatter
             formatter._SEPARATOR = separator
 
         # eval globals
-        path = config.get((), "globals")
-        if path:
+        if path := config.get((), "globals"):
             util.GLOBALS.update(util.import_file(path).__dict__)
 
         # loglevels
@@ -137,13 +138,12 @@ def main():
             import platform
             import requests
 
-            extra = ""
             if util.EXECUTABLE:
-                extra = " - Executable ({})".format(version.__variant__)
+                extra = f" - Executable ({version.__variant__})"
+            elif git_head := util.git_head():
+                extra = " - Git HEAD: " + git_head
             else:
-                git_head = util.git_head()
-                if git_head:
-                    extra = " - Git HEAD: " + git_head
+                extra = ""
 
             log.debug("Version %s%s", __version__, extra)
             log.debug("Python %s - %s",
@@ -253,8 +253,7 @@ def main():
                 ))
 
         else:
-            input_files = config.get((), "input-files")
-            if input_files:
+            if input_files := config.get((), "input-files"):
                 for input_file in input_files:
                     if isinstance(input_file, str):
                         input_file = (input_file, None)
@@ -284,17 +283,15 @@ def main():
             input_manager.log = input_log = logging.getLogger("inputfile")
 
             # unsupported file logging handler
-            handler = output.setup_logging_handler(
-                "unsupportedfile", fmt="{message}")
-            if handler:
+            if handler := output.setup_logging_handler(
+                    "unsupportedfile", fmt="{message}"):
                 ulog = job.Job.ulog = logging.getLogger("unsupported")
                 ulog.addHandler(handler)
                 ulog.propagate = False
 
             # error file logging handler
-            handler = output.setup_logging_handler(
-                "errorfile", fmt="{message}", mode="a")
-            if handler:
+            if handler := output.setup_logging_handler(
+                    "errorfile", fmt="{message}", mode="a"):
                 elog = input_manager.err = logging.getLogger("errorfile")
                 elog.addHandler(handler)
                 elog.propagate = False
@@ -316,13 +313,20 @@ def main():
                     args.loglevel < logging.ERROR:
                 input_manager.progress(pformat)
 
-            catmap = config.interpolate(("extractor",), "category-map")
-            if catmap:
+            if catmap := config.interpolate(("extractor",), "category-map"):
                 if catmap == "compat":
                     catmap = {
                         "coomer"       : "coomerparty",
                         "kemono"       : "kemonoparty",
                         "schalenetwork": "koharu",
+                        "naver-blog"   : "naver",
+                        "naver-chzzk"  : "chzzk",
+                        "naver-webtoon": "naverwebtoon",
+                        "pixiv-novel"  : "pixiv",
+                        "pixiv-novel:novel"   : ("pixiv", "novel"),
+                        "pixiv-novel:user"    : ("pixiv", "novel-user"),
+                        "pixiv-novel:series"  : ("pixiv", "novel-series"),
+                        "pixiv-novel:bookmark": ("pixiv", "novel-bookmark"),
                     }
                 from .extractor import common
                 common.CATEGORY_MAP = catmap
@@ -347,13 +351,11 @@ def main():
                     else:
                         input_manager.success()
 
-                except exception.StopExtraction:
-                    pass
-                except exception.TerminateExtraction:
-                    pass
                 except exception.RestartExtraction:
                     log.debug("Restarting '%s'", url)
                     continue
+                except exception.ControlException:
+                    pass
                 except exception.NoExtractorError:
                     log.error("Unsupported URL '%s'", url)
                     retval |= 64
@@ -474,16 +476,15 @@ class InputManager():
                 key, sep, value = line.partition("=")
                 if not sep:
                     raise exception.InputFileError(
-                        "Invalid KEY=VALUE pair '%s' on line %s in %s",
-                        line, n+1, path)
+                        f"Invalid KEY=VALUE pair '{line}' "
+                        f"on line {n+1} in {path}")
 
                 try:
                     value = util.json_loads(value.strip())
                 except ValueError as exc:
                     self.log.debug("%s: %s", exc.__class__.__name__, exc)
                     raise exception.InputFileError(
-                        "Unable to parse '%s' on line %s in %s",
-                        value, n+1, path)
+                        f"Unable to parse '{value}' on line {n+1} in {path}")
 
                 key = key.strip().split(".")
                 conf.append((key[:-1], key[-1], value))

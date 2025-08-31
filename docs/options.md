@@ -11,9 +11,10 @@
     -d, --destination PATH      Target location for file downloads
     -D, --directory PATH        Exact location for file downloads
     -X, --extractors PATH       Load external extractors from PATH
-    --user-agent UA             User-Agent request header
+    -a, --user-agent UA         User-Agent request header
     --clear-cache MODULE        Delete cached login sessions, cookies, etc. for
                                 MODULE (ALL to delete everything)
+    --compat                    Restore legacy 'category' names
 
 ## Update Options:
     -U, --update                Update to the latest version
@@ -91,6 +92,8 @@
                                 (e.g. 2.7 or 2.0-3.5)
     --sleep-request SECONDS     Number of seconds to wait between HTTP requests
                                 during data extraction
+    --sleep-429 SECONDS         Number of seconds to wait when receiving a '429
+                                Too Many Requests' response
     --sleep-extractor SECONDS   Number of seconds to wait before starting data
                                 extraction for an input URL
     --no-part                   Do not use .part files
@@ -125,15 +128,19 @@
                                 container (default), 'all' for all containers)
 
 ## Selection Options:
-    -A, --abort N               Stop current extractor run after N consecutive
+    -A, --abort N[:TARGET]      Stop current extractor(s) after N consecutive
+                                file downloads were skipped. Specify a TARGET
+                                to set how many levels to ascend or to which
+                                subcategory to jump to. Examples: '-A 3', '-A
+                                3:2', '-A 3:manga'
+    -T, --terminate N           Stop current & parent extractors and proceed
+                                with the next input URL after N consecutive
                                 file downloads were skipped
-    -T, --terminate N           Stop current and parent extractor runs after N
-                                consecutive file downloads were skipped
     --filesize-min SIZE         Do not download files smaller than SIZE (e.g.
                                 500k or 2.5M)
     --filesize-max SIZE         Do not download files larger than SIZE (e.g.
                                 500k or 2.5M)
-    --download-archive FILE     Record all downloaded or skipped files in FILE
+    --download-archive FILE     Record successfully downloaded files in FILE
                                 and skip downloading any file already in it
     --range RANGE               Index range(s) specifying which files to
                                 download. These can be either a constant value,

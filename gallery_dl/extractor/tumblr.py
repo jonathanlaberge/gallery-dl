@@ -34,8 +34,7 @@ class TumblrExtractor(Extractor):
     def __init__(self, match):
         Extractor.__init__(self, match)
 
-        name = match[2]
-        if name:
+        if name := match[2]:
             self.blog = name + ".tumblr.com"
         else:
             self.blog = match[1] or match[3]
@@ -139,8 +138,7 @@ class TumblrExtractor(Extractor):
             if url and url.startswith("https://a.tumblr.com/"):
                 posts.append(self._prepare(url, post.copy()))
 
-            url = post.get("video_url")  # type "video"
-            if url:
+            if url := post.get("video_url"):  # type "video"
                 posts.append(self._prepare(
                     self._original_video(url), post.copy()))
 
@@ -160,8 +158,7 @@ class TumblrExtractor(Extractor):
                     posts.append(self._prepare(url, post.copy()))
 
             if self.external:  # external links
-                url = post.get("permalink_url") or post.get("url")
-                if url:
+                if url := post.get("permalink_url") or post.get("url"):
                     post["extension"] = None
                     posts.append((Message.Queue, url, post.copy()))
                     del post["extension"]
@@ -173,6 +170,11 @@ class TumblrExtractor(Extractor):
                 post["num"] = num
                 post["count"] = len(posts)
                 yield msg, url, post
+
+    def items_blogs(self):
+        for blog in self.blogs():
+            blog["_extractor"] = TumblrUserExtractor
+            yield Message.Queue, blog["url"], blog
 
     def posts(self):
         """Return an iterable containing all relevant posts"""
@@ -191,8 +193,7 @@ class TumblrExtractor(Extractor):
                 types = types.split(",")
             types = frozenset(types)
 
-            invalid = types - POST_TYPES
-            if invalid:
+            if invalid := types - POST_TYPES:
                 types = types & POST_TYPES
                 self.log.warning("Invalid post types: '%s'",
                                  "', '".join(sorted(invalid)))
@@ -349,6 +350,30 @@ class TumblrLikesExtractor(TumblrExtractor):
         return self.api.likes(self.blog)
 
 
+class TumblrFollowingExtractor(TumblrExtractor):
+    """Extractor for a Tumblr user's followed blogs"""
+    subcategory = "following"
+    pattern = BASE_PATTERN + r"/following"
+    example = "https://www.tumblr.com/BLOG/following"
+
+    items = TumblrExtractor.items_blogs
+
+    def blogs(self):
+        return self.api.following(self.blog)
+
+
+class TumblrFollowersExtractor(TumblrExtractor):
+    """Extractor for a Tumblr user's followers"""
+    subcategory = "followers"
+    pattern = BASE_PATTERN + r"/followers"
+    example = "https://www.tumblr.com/BLOG/followers"
+
+    items = TumblrExtractor.items_blogs
+
+    def blogs(self):
+        return self.api.followers(self.blog)
+
+
 class TumblrSearchExtractor(TumblrExtractor):
     """Extractor for a Tumblr search"""
     subcategory = "search"
@@ -357,7 +382,7 @@ class TumblrSearchExtractor(TumblrExtractor):
     example = "https://www.tumblr.com/search/QUERY"
 
     def posts(self):
-        _, _, _, search, mode, post_type, query = self.groups
+        search, mode, post_type, query = self.groups
         params = text.parse_query(query)
         return self.api.search(text.unquote(search), params, mode, post_type)
 
@@ -381,7 +406,7 @@ class TumblrAPI(oauth.OAuth1API):
         try:
             return self.BLOG_CACHE[blog]
         except KeyError:
-            endpoint = "/v2/blog/{}/info".format(blog)
+            endpoint = f"/v2/blog/{blog}/info"
             params = {"api_key": self.api_key} if self.api_key else None
             self.BLOG_CACHE[blog] = blog = self._call(endpoint, params)["blog"]
             return blog
@@ -389,9 +414,9 @@ class TumblrAPI(oauth.OAuth1API):
     def avatar(self, blog, size="512"):
         """Retrieve a blog avatar"""
         if self.api_key:
-            return "{}/v2/blog/{}/avatar/{}?api_key={}".format(
-                self.ROOT, blog, size, self.api_key)
-        endpoint = "/v2/blog/{}/avatar".format(blog)
+            return (f"{self.ROOT}/v2/blog/{blog}/avatar/{size}"
+                    f"?api_key={self.api_key}")
+        endpoint = f"/v2/blog/{blog}/avatar"
         params = {"size": size}
         return self._call(
             endpoint, params, allow_redirects=False)["avatar_url"]
@@ -407,12 +432,12 @@ class TumblrAPI(oauth.OAuth1API):
         if self.before and params["offset"]:
             self.log.warning("'offset' and 'date-max' cannot be used together")
 
-        endpoint = "/v2/blog/{}/posts".format(blog)
+        endpoint = f"/v2/blog/{blog}/posts"
         return self._pagination(endpoint, params, blog=blog, cache=True)
 
     def likes(self, blog):
         """Retrieve liked posts"""
-        endpoint = "/v2/blog/{}/likes".format(blog)
+        endpoint = f"/v2/blog/{blog}/likes"
         params = {"limit": "50", "before": self.before}
         if self.api_key:
             params["api_key"] = self.api_key
@@ -423,6 +448,14 @@ class TumblrAPI(oauth.OAuth1API):
                 return
             yield from posts
             params["before"] = posts[-1]["liked_timestamp"]
+
+    def following(self, blog):
+        endpoint = f"/v2/blog/{blog}/following"
+        return self._pagination_blogs(endpoint)
+
+    def followers(self, blog):
+        endpoint = f"/v2/blog/{blog}/followers"
+        return self._pagination_blogs(endpoint)
 
     def search(self, query, params, mode="top", post_type=None):
         """Retrieve search results"""
@@ -499,18 +532,17 @@ class TumblrAPI(oauth.OAuth1API):
                         continue
 
                     t = (datetime.now() + timedelta(0, float(reset))).time()
-                    raise exception.StopExtraction(
-                        "Aborting - Rate limit will reset at %s",
-                        "{:02}:{:02}:{:02}".format(t.hour, t.minute, t.second))
+                    raise exception.AbortExtraction(
+                        f"Aborting - Rate limit will reset at "
+                        f"{t.hour:02}:{t.minute:02}:{t.second:02}")
 
                 # hourly rate limit
-                reset = response.headers.get("x-ratelimit-perhour-reset")
-                if reset:
+                if reset := response.headers.get("x-ratelimit-perhour-reset"):
                     self.log.info("Hourly API rate limit exceeded")
                     self.extractor.wait(seconds=reset)
                     continue
 
-            raise exception.StopExtraction(data)
+            raise exception.AbortExtraction(data)
 
     def _pagination(self, endpoint, params,
                     blog=None, key="posts", cache=False):
@@ -561,3 +593,21 @@ class TumblrAPI(oauth.OAuth1API):
                 params["before"] = None
                 if params["offset"] >= data["total_posts"]:
                     return
+
+    def _pagination_blogs(self, endpoint, params=None):
+        if params is None:
+            params = {}
+        if self.api_key:
+            params["api_key"] = self.api_key
+        params["limit"] = 20
+        params["offset"] = text.parse_int(params.get("offset"), 0)
+
+        while True:
+            data = self._call(endpoint, params)
+
+            blogs = data["blogs"]
+            yield from blogs
+
+            params["offset"] = params["offset"] + params["limit"]
+            if params["offset"] >= data["total_blogs"]:
+                return

@@ -29,9 +29,9 @@ class EveriaExtractor(Extractor):
 
         while True:
             if pnum == 1:
-                url = "{}{}/".format(self.root, path)
+                url = f"{self.root}{path}/"
             else:
-                url = "{}{}/page/{}/".format(self.root, path, pnum)
+                url = f"{self.root}{path}/page/{pnum}/"
             response = self.request(url, params=params, allow_redirects=False)
 
             if response.status_code >= 300:
@@ -52,7 +52,7 @@ class EveriaPostExtractor(EveriaExtractor):
         url = self.root + self.groups[0] + "/"
         page = self.request(url).text
         content = text.extr(page, 'itemprop="text">', "<h3")
-        urls = util.re(r'img.*?src="([^"]+)').findall(content)
+        urls = util.re(r'img.*?lazy-src="([^"]+)').findall(content)
 
         data = {
             "title": text.unescape(

@@ -23,6 +23,7 @@ class ImagebamExtractor(Extractor):
 
     def _init(self):
         self.cookies.set("nsfw_inter", "1", domain="www.imagebam.com")
+        self.cookies.set("sfw_inter", "1", domain="www.imagebam.com")
 
     def _parse_image_page(self, path):
         page = self.request(self.root + path).text
@@ -75,8 +76,7 @@ class ImagebamGalleryExtractor(ImagebamExtractor):
             paths += findall(page)
             pos = page.find('rel="next" aria-label="Next')
             if pos > 0:
-                url = text.rextr(page, 'href="', '"', pos)
-                if url:
+                if url := text.rextr(page, 'href="', '"', pos):
                     page = self.request(url).text
                     continue
             return paths

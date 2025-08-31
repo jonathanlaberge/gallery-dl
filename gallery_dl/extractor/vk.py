@@ -19,7 +19,7 @@ class VkExtractor(Extractor):
     category = "vk"
     directory_fmt = ("{category}", "{user[name]|user[id]}")
     filename_fmt = "{id}.{extension}"
-    archive_fmt = "{id}"
+    archive_fmt = "{user[id]}_{id}"
     root = "https://vk.com"
     request_interval = (0.5, 1.5)
 
@@ -96,8 +96,8 @@ class VkExtractor(Extractor):
             response = self.request(
                 url, method="POST", headers=headers, data=data)
             if response.history and "/challenge.html" in response.url:
-                raise exception.StopExtraction(
-                    "HTTP redirect to 'challenge' page<:\n%s", response.url)
+                raise exception.AbortExtraction(
+                    f"HTTP redirect to 'challenge' page:\n{response.url}")
 
             payload = response.json()["payload"][1]
             if len(payload) < 4:
@@ -112,8 +112,7 @@ class VkExtractor(Extractor):
             if offset_next >= total:
                 # the last chunk of photos also contains the first few photos
                 # again if 'total' is not a multiple of 10
-                extra = total - offset_next
-                if extra:
+                if extra := total - offset_next:
                     del photos[extra:]
 
                 yield from photos
@@ -143,10 +142,10 @@ class VkPhotosExtractor(VkExtractor):
         if self.user_id:
             user_id = self.user_id
             prefix = "public" if user_id[0] == "-" else "id"
-            url = "{}/{}{}".format(self.root, prefix, user_id.lstrip("-"))
+            url = f"{self.root}/{prefix}{user_id.lstrip('-')}"
             data = self._extract_profile(url)
         else:
-            url = "{}/{}".format(self.root, self.user_name)
+            url = f"{self.root}/{self.user_name}"
             data = self._extract_profile(url)
             self.user_id = data["user"]["id"]
         return data
@@ -185,8 +184,7 @@ class VkAlbumExtractor(VkExtractor):
         self.user_id, self.album_id = match.groups()
 
     def photos(self):
-        return self._pagination("album{}_{}".format(
-            self.user_id, self.album_id))
+        return self._pagination(f"album{self.user_id}_{self.album_id}")
 
     def metadata(self):
         return {
@@ -207,7 +205,7 @@ class VkTaggedExtractor(VkExtractor):
         self.user_id = match[1]
 
     def photos(self):
-        return self._pagination("tag{}".format(self.user_id))
+        return self._pagination(f"tag{self.user_id}")
 
     def metadata(self):
         return {"user": {"id": self.user_id}}

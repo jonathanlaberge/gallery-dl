@@ -84,19 +84,21 @@ __tests__ = (
     "#results"     : "https://image.civitai.com/xG1nkqKTMzGDvpLrqFT7WA/69bf3279-df2c-4ec8-b795-479e9cd3db1b/w/00014-3150861441.png",
     "#sha1_content": "a9a9d08f5fcdbc1e1eec7f203717f9df97b7a671",
 
-    "createdAt": "2024-08-31T01:11:47.021Z",
-    "date"     : "dt:2024-08-31 01:11:47",
     "extension": "png",
     "filename" : "00014-3150861441",
-    "hash"     : "ULN0-w?b4nRjxGM{-;t7M_t7NGae~qRjMyt7",
-    "width"    : 1152,
-    "height"   : 1536,
-    "id"       : 26962948,
-    "nsfwLevel": 1,
-    "postId"   : 6030721,
-    "stats"    : dict,
-    "url"      : "69bf3279-df2c-4ec8-b795-479e9cd3db1b",
-    "uuid"     : "69bf3279-df2c-4ec8-b795-479e9cd3db1b",
+    "file": {
+        "createdAt": "2024-08-31T01:11:47.021Z",
+        "date"     : "dt:2024-08-31 01:11:47",
+        "hash"     : "ULN0-w?b4nRjxGM{-;t7M_t7NGae~qRjMyt7",
+        "width"    : 1152,
+        "height"   : 1536,
+        "id"       : 26962948,
+        "nsfwLevel": 1,
+        "postId"   : 6030721,
+        "stats"    : dict,
+        "url"      : "69bf3279-df2c-4ec8-b795-479e9cd3db1b",
+        "uuid"     : "69bf3279-df2c-4ec8-b795-479e9cd3db1b",
+    },
     "user"     : {
         "username": "bolero537",
     },
@@ -162,7 +164,7 @@ __tests__ = (
         "name": "v1.0 XL",
         "description": None,
         "baseModel": "SDXL 1.0",
-        "baseModelType": None,
+        "baseModelType": "Standard",
         "earlyAccessConfig": None,
         "earlyAccessEndsAt": None,
         "trainedWords": [
@@ -191,31 +193,47 @@ __tests__ = (
 
 {
     "#url"    : "https://civitai.com/images/44789630",
-    "#comment": "video",
+    "#comment": "video - 'post' metadata (#7548)",
     "#class"  : civitai.CivitaiImageExtractor,
+    "#options": {"metadata": "post"},
     "#results": "https://image.civitai.com/xG1nkqKTMzGDvpLrqFT7WA/6a09ec54-6de4-4af1-b11d-2d0d8a66d651/quality=100/copy_C6C532CE-EC47-4A52-9138-AEF1D7756F16.Mp4",
 
-    "date"     : "dt:2024-12-10 19:19:14",
     "extension": "mp4",
     "filename" : "copy_C6C532CE-EC47-4A52-9138-AEF1D7756F16",
-    "hash"     : "U9D8%cIU03Rk02?F$$WE0gs,?GSg~B9ut6sl",
-    "width"    : 1080,
-    "height"   : 1920,
-    "id"       : 44789630,
-    "mimeType" : "video/mp4",
-    "nsfwLevel": 2,
-    "postId"   : 10151863,
-    "stats"    : dict,
-    "type"     : "video",
-    "url"      : "6a09ec54-6de4-4af1-b11d-2d0d8a66d651",
-    "uuid"     : "6a09ec54-6de4-4af1-b11d-2d0d8a66d651",
-    "metadata" : {
-        "audio"   : True,
-        "duration": 15.033,
-        "hash"    : "U9D8%cIU03Rk02?F$$WE0gs,?GSg~B9ut6sl",
-        "height"  : 1920,
-        "size"    : 23984479,
-        "width"   : 1080,
+    "file"     : {
+        "date"     : "dt:2024-12-10 19:19:14",
+        "hash"     : "U9D8%cIU03Rk02?F$$WE0gs,?GSg~B9ut6sl",
+        "width"    : 1080,
+        "height"   : 1920,
+        "id"       : 44789630,
+        "mimeType" : "video/mp4",
+        "nsfwLevel": 2,
+        "postId"   : 10151863,
+        "stats"    : dict,
+        "type"     : "video",
+        "url"      : "6a09ec54-6de4-4af1-b11d-2d0d8a66d651",
+        "uuid"     : "6a09ec54-6de4-4af1-b11d-2d0d8a66d651",
+        "metadata" : {
+            "audio"   : True,
+            "duration": 15.033,
+            "hash"    : "U9D8%cIU03Rk02?F$$WE0gs,?GSg~B9ut6sl",
+            "height"  : 1920,
+            "size"    : 23984479,
+            "width"   : 1080,
+        },
+    },
+    "post": {
+        "availability": "Public",
+        "collectionId": None,
+        "date"        : "dt:2024-12-10 19:20:51",
+        "detail"      : None,
+        "id"          : 10151863,
+        "modelVersion": None,
+        "modelVersionId": None,
+        "nsfwLevel"   : 2,
+        "publishedAt" : "2024-12-10T19:20:51.579Z",
+        "tags"        : [],
+        "title"       : None,
     },
     "user"     : {
         "username": "jboogx_creative",
@@ -228,28 +246,30 @@ __tests__ = (
     "#class": civitai.CivitaiImageExtractor,
     "#results": "https://image.civitai.com/xG1nkqKTMzGDvpLrqFT7WA/c7e3744b-8f0d-4124-94c1-75e2af00431d/quality=100/2025-04-25-23h40m21s_seed665048144_A man appears from off screen and spanks her butto_2.webm",
 
-    "date"     : "dt:2025-05-05 12:27:28",
     "extension": "webm",
     "filename" : "2025-04-25-23h40m21s_seed665048144_A man appears from off screen and spanks her butto_2",
-    "hash"     : "UMCsEoRPivxY~VjuWBoenMWBx]WrxvV?xvbb",
-    "width"    : 512,
-    "height"   : 752,
-    "id"       : 74353746,
-    "mimeType" : "video/webm",
-    "nsfwLevel": 4,
-    "postId"   : 16509805,
-    "stats"    : dict,
-    "type"     : "video",
-    "url"      : "c7e3744b-8f0d-4124-94c1-75e2af00431d",
-    "uuid"     : "c7e3744b-8f0d-4124-94c1-75e2af00431d",
-    "metadata" : {
-        "audio"   : False,
-        "duration": 5.016,
-        "hash"    : "UMCsEoRPivxY~VjuWBoenMWBx]WrxvV?xvbb",
-        "height"  : 752,
-        "size"    : 6011344,
-        "skipScannedAtReassignment": True,
-        "width"   : 512,
+    "file"     : {
+        "date"     : "dt:2025-05-05 12:27:28",
+        "hash"     : "UMCsEoRPivxY~VjuWBoenMWBx]WrxvV?xvbb",
+        "width"    : 512,
+        "height"   : 752,
+        "id"       : 74353746,
+        "mimeType" : "video/webm",
+        "nsfwLevel": 4,
+        "postId"   : 16509805,
+        "stats"    : dict,
+        "type"     : "video",
+        "url"      : "c7e3744b-8f0d-4124-94c1-75e2af00431d",
+        "uuid"     : "c7e3744b-8f0d-4124-94c1-75e2af00431d",
+        "metadata" : {
+            "audio"   : False,
+            "duration": 5.016,
+            "hash"    : "UMCsEoRPivxY~VjuWBoenMWBx]WrxvV?xvbb",
+            "height"  : 752,
+            "size"    : 6011344,
+            "skipScannedAtReassignment": True,
+            "width"   : 512,
+        },
     },
     "user"     : {
         "id"      : 4856161,
@@ -274,7 +294,9 @@ __tests__ = (
     "#class"  : civitai.CivitaiImageExtractor,
     "#results": "https://image.civitai.com/xG1nkqKTMzGDvpLrqFT7WA/2d1fbe1b-6038-479f-8c37-39d338198fb1/quality=100/received_687641707052140.mp4",
 
-    "nsfwLevel": 4,
+    "file": {
+        "nsfwLevel": 4,
+    },
 },
 
 {
@@ -283,7 +305,9 @@ __tests__ = (
     "#class"  : civitai.CivitaiImageExtractor,
     "#results": "https://image.civitai.com/xG1nkqKTMzGDvpLrqFT7WA/1107208c-14cc-46fd-848d-2efa14fa6180/original=true/QRQC7HE5DFW3QZ85R3MXQXY440.jpeg",
 
-    "nsfwLevel": 8,
+    "file": {
+        "nsfwLevel": 8,
+    },
 },
 
 {
@@ -292,7 +316,9 @@ __tests__ = (
     "#class"  : civitai.CivitaiImageExtractor,
     "#results": "https://image.civitai.com/xG1nkqKTMzGDvpLrqFT7WA/fdbaa27d-4278-496b-8209-21591e5dc6fe/original=true/Q8AE16QCMCYCCBX49PG8VVWWD0.jpeg",
 
-    "nsfwLevel": 16,
+    "file": {
+        "nsfwLevel": 16,
+    },
 },
 
 {
@@ -311,6 +337,7 @@ __tests__ = (
     },
     "file": {
         "id"  : {30748752, 30748747, 30748733},
+        "date": "dt:2024-09-22 12:54:15",
         "uuid": {"6220fa0f-9037-4b1d-bfbd-a740a06eeb7c",
                  "cd1edb7f-7b50-4da5-bf23-d38f24d8aef0",
                  "cfd5b231-accd-49bd-8bde-370880f63aa6"},
@@ -337,6 +364,16 @@ __tests__ = (
 },
 
 {
+    "#url"     : "https://civitai.com/posts/20403514",
+    "#comment" : "mixed image & video (#8053)",
+    "#class"   : civitai.CivitaiPostExtractor,
+    "#results" : (
+        "https://image.civitai.com/xG1nkqKTMzGDvpLrqFT7WA/62dbebbe-48e9-4232-b4da-33c70d19683d/original=true/91967659.png",
+        "https://image.civitai.com/xG1nkqKTMzGDvpLrqFT7WA/e5786ddc-29b3-4a69-aec9-fba4dc2c78b5/quality=100/91967639.webm",
+    ),
+},
+
+{
     "#url"  : "https://civitai.com/tag/mecha",
     "#class": civitai.CivitaiTagExtractor,
 },
@@ -349,6 +386,16 @@ __tests__ = (
 {
     "#url"  : "https://civitai.com/images?modelVersionId=786644",
     "#class": civitai.CivitaiImagesExtractor,
+},
+
+{
+    "#url"     : "https://civitai.com/videos",
+    "#class"   : civitai.CivitaiVideosExtractor,
+},
+
+{
+    "#url"     : "https://civitai.com/videos?tags=5169",
+    "#class"   : civitai.CivitaiVideosExtractor,
 },
 
 {
@@ -379,8 +426,8 @@ __tests__ = (
     "#url"  : "https://civitai.com/user/waomodder",
     "#class": civitai.CivitaiUserExtractor,
     "#results": (
-        "https://civitai.com/user/waomodder/models",
-        "https://civitai.com/user/waomodder/posts",
+        "https://civitai.com/user/waomodder/images",
+        "https://civitai.com/user/waomodder/videos",
     ),
 },
 
@@ -411,6 +458,15 @@ __tests__ = (
     "#pattern": r"https://image\.civitai\.com/xG1nkqKTMzGDvpLrqFT7WA/[0-9a-f-]+/original=true/\S+\.(jpe?g|png)",
     "#range"  : "1-50",
     "#count"  : 50,
+
+    "file": {
+        "id"  : int,
+        "date": "type:datetime",
+    },
+    "post": {
+        "id"  : int,
+        "date": "type:datetime",
+    },
 },
 
 {
@@ -487,5 +543,155 @@ __tests__ = (
     "#exception": exception.AuthorizationError,
 },
 
+{
+    "#url"     : "https://civitai.com/generate",
+    "#class"   : civitai.CivitaiGeneratedExtractor,
+    "#auth"    : True,
+},
+
+{
+    "#url"     : "https://civitai.com/collections/11035869",
+    "#class"   : civitai.CivitaiCollectionExtractor,
+    "#results" : "https://image.civitai.com/xG1nkqKTMzGDvpLrqFT7WA/9b9c64b4-60de-4a9c-becd-a386ecf3fa7a/original=true/DailyWorldMorphChallenge_Base_0003.png",
+
+    "filename"       : "DailyWorldMorphChallenge_Base_0003",
+    "extension"      : "png",
+    "url"            : "https://image.civitai.com/xG1nkqKTMzGDvpLrqFT7WA/9b9c64b4-60de-4a9c-becd-a386ecf3fa7a/original=true/DailyWorldMorphChallenge_Base_0003.png",
+    "collection"     : {
+        "availability": "Public",
+        "description" : "",
+        "id"          : 11035869,
+        "image"       : None,
+        "metadata"    : {},
+        "mode"        : None,
+        "name"        : "Trees, Bonsai, and so one",
+        "nsfw"        : False,
+        "nsfwLevel"   : 1,
+        "read"        : "Public",
+        "tags"        : [],
+        "type"        : "Image",
+        "userId"      : 4831516,
+        "write"       : "Private",
+    },
+    "file"           : {
+        "acceptableMinor": False,
+        "availability"   : "Public",
+        "blockedFor"     : None,
+        "cosmetic"       : None,
+        "createdAt"      : "2025-04-30T20:20:44.015Z",
+        "date"           : "dt:2025-04-30 20:20:44",
+        "hasMeta"        : True,
+        "hasPositivePrompt": True,
+        "hash"           : "UHEfvNWC?dof00oc4Uae$,ofV}WFxeWCxwWV",
+        "height"         : 1152,
+        "hideMeta"       : False,
+        "id"             : 73339178,
+        "index"          : 1,
+        "ingestion"      : "Scanned",
+        "metadata"       : {
+            "hash"  : "UHEfvNWC?dof00oc4Uae$,ofV}WFxeWCxwWV",
+            "height": 1152,
+            "size"  : 1523677,
+            "width" : 896,
+        },
+        "mimeType"       : "image/png",
+        "minor"          : False,
+        "modelVersionId" : None,
+        "modelVersionIds": [],
+        "modelVersionIdsManual": [],
+        "name"           : "DailyWorldMorphChallenge_Base_0003.png",
+        "needsReview"    : None,
+        "nsfwLevel"      : 1,
+        "onSite"         : False,
+        "poi"            : False,
+        "postId"         : 16290779,
+        "postTitle"      : None,
+        "publishedAt"    : "2025-04-30T20:23:40.409Z",
+        "reactions"      : [],
+        "remixOfId"      : None,
+        "scannedAt"      : "2025-04-30T20:20:48.072Z",
+        "sortAt"         : "2025-04-30T20:23:40.409Z",
+        "stats"          : {
+            "collectedCountAllTime": 1,
+            "commentCountAllTime": 0,
+            "cryCountAllTime" : 1,
+            "dislikeCountAllTime": 0,
+            "heartCountAllTime": 1,
+            "laughCountAllTime": 0,
+            "likeCountAllTime": 5,
+            "tippedAmountCountAllTime": 0,
+            "viewCountAllTime": 0,
+        },
+        "tagIds"         : [
+            5248,
+            9143,
+            111839,
+            112019,
+            116352,
+            120250,
+            161904,
+            234268,
+        ],
+        "tags"           : None,
+        "thumbnailUrl"   : None,
+        "type"           : "image",
+        "url"            : "9b9c64b4-60de-4a9c-becd-a386ecf3fa7a",
+        "uuid"           : "9b9c64b4-60de-4a9c-becd-a386ecf3fa7a",
+        "width"          : 896,
+    },
+    "user"           : {
+        "cosmetics"     : list,
+        "deletedAt"     : None,
+        "id"            : 2624648,
+        "image"         : "ce0f7d5e-cc4a-41e2-8587-75d823c85ce9",
+        "profilePicture": None,
+        "username"      : "AIArtsChannel",
+    },
+    "user_collection": {
+        "cosmetics"     : [],
+        "deletedAt"     : None,
+        "id"            : 4831516,
+        "image"         : "https://lh3.googleusercontent.com/a/ACg8ocKeClAsD6kmHOATnC4Li1PLYw9-J41LCaVHdzcLLGZi9ElNUQ=s96-c",
+        "profilePicture": None,
+        "username"      : "TettyCo",
+    },
+},
+
+{
+    "#url"     : "https://civitai.com/collections/11453135",
+    "#class"   : civitai.CivitaiCollectionExtractor,
+    "#count"   : 12,
+
+    "collection"     : {
+        "availability": "Public",
+        "description" : "",
+        "id"          : 11453135,
+        "image"       : None,
+        "metadata"    : {},
+        "mode"        : None,
+        "name"        : "Sakura Trees",
+        "nsfw"        : False,
+        "nsfwLevel"   : 3,
+        "read"        : "Public",
+        "tags"        : [],
+        "type"        : "Image",
+        "userId"      : 8511981,
+        "write"       : "Private",
+    },
+},
+
+{
+    "#url"     : "https://civitai.com/user/SakuraCherryBlossoms/collections",
+    "#class"   : civitai.CivitaiUserCollectionsExtractor,
+    "#results" : (
+        "https://civitai.com/collections/11462456",
+        "https://civitai.com/collections/11453431",
+        "https://civitai.com/collections/11453135",
+        "https://civitai.com/collections/11407164",
+        "https://civitai.com/collections/11405046",
+        "https://civitai.com/collections/11395523",
+        "https://civitai.com/collections/11395467",
+    ),
+},
 
 )

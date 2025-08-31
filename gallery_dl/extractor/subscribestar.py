@@ -65,8 +65,8 @@ class SubscribestarExtractor(Extractor):
             if response.history and (
                     "/verify_subscriber" in response.url or
                     "/age_confirmation_warning" in response.url):
-                raise exception.StopExtraction(
-                    "HTTP redirect to %s", response.url)
+                raise exception.AbortExtraction(
+                    f"HTTP redirect to {response.url}")
 
             content = response.content
             if len(content) < 250 and b">redirected<" in content:
@@ -115,11 +115,10 @@ class SubscribestarExtractor(Extractor):
         }
 
         def check_errors(response):
-            errors = response.json().get("errors")
-            if errors:
+            if errors := response.json().get("errors"):
                 self.log.debug(errors)
                 try:
-                    msg = '"{}"'.format(errors.popitem()[1])
+                    msg = f'"{errors.popitem()[1]}"'
                 except Exception:
                     msg = None
                 raise exception.AuthenticationError(msg)
@@ -146,8 +145,7 @@ class SubscribestarExtractor(Extractor):
     def _media_from_post(self, html):
         media = []
 
-        gallery = text.extr(html, 'data-gallery="', '"')
-        if gallery:
+        if gallery := text.extr(html, 'data-gallery="', '"'):
             for item in util.json_loads(text.unescape(gallery)):
                 if "/previews" in item["url"]:
                     self._warn_preview()
@@ -222,7 +220,7 @@ class SubscribestarUserExtractor(SubscribestarExtractor):
 
     def posts(self):
         needle_next_page = 'data-role="infinite_scroll-next_page" href="'
-        page = self.request("{}/{}".format(self.root, self.item)).text
+        page = self.request(f"{self.root}/{self.item}").text
 
         while True:
             posts = page.split('<div class="post ')[1:]
@@ -233,7 +231,7 @@ class SubscribestarUserExtractor(SubscribestarExtractor):
             url = text.extr(posts[-1], needle_next_page, '"')
             if not url:
                 return
-            page = self.request(self.root + text.unescape(url)).json()["html"]
+            page = self.request_json(self.root + text.unescape(url))["html"]
 
 
 class SubscribestarPostExtractor(SubscribestarExtractor):
@@ -243,7 +241,7 @@ class SubscribestarPostExtractor(SubscribestarExtractor):
     example = "https://www.subscribestar.com/posts/12345"
 
     def posts(self):
-        url = "{}/posts/{}".format(self.root, self.item)
+        url = f"{self.root}/posts/{self.item}"
         return (self.request(url).text,)
 
     def _data_from_post(self, html):

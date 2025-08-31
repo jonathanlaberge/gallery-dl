@@ -86,17 +86,16 @@ class GofileFolderExtractor(Extractor):
         return self._api_request("contents/" + content_id, params, headers)
 
     def _api_request(self, endpoint, params=None, headers=None, method="GET"):
-        response = self.request(
+        response = self.request_json(
             "https://api.gofile.io/" + endpoint,
-            method=method, params=params, headers=headers,
-        ).json()
+            method=method, params=params, headers=headers)
 
         if response["status"] != "ok":
             if response["status"] == "error-notFound":
                 raise exception.NotFoundError("content")
             if response["status"] == "error-passwordRequired":
                 raise exception.AuthorizationError("Password required")
-            raise exception.StopExtraction(
-                "%s failed (Status: %s)", endpoint, response["status"])
+            raise exception.AbortExtraction(
+                f"{endpoint} failed (Status: {response['status']})")
 
         return response["data"]

@@ -82,8 +82,7 @@ class YoutubeDLExtractor(Extractor):
             ytdl_module, self, user_opts, extr_opts)
 
         # transfer cookies to ytdl
-        cookies = self.cookies
-        if cookies:
+        if cookies := self.cookies:
             set_cookie = ytdl_instance.cookiejar.set_cookie
             for cookie in cookies:
                 set_cookie(cookie)
@@ -95,7 +94,7 @@ class YoutubeDLExtractor(Extractor):
                 ytdl_instance.get_info_extractor(self.ytdl_ie_key),
                 False, {}, True)
         except ytdl_module.utils.YoutubeDLError:
-            raise exception.StopExtraction("Failed to extract video data")
+            raise exception.AbortExtraction("Failed to extract video data")
 
         if not info_dict:
             return

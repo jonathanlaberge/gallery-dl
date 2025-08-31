@@ -26,15 +26,15 @@ class LusciousExtractor(Extractor):
             "variables"    : variables,
         }
         response = self.request(
-            "{}/graphql/nobatch/?operationName={}".format(self.root, op),
+            f"{self.root}/graphql/nobatch/?operationName={op}",
             method="POST", json=data, fatal=False,
         )
 
         if response.status_code >= 400:
             self.log.debug("Server response: %s", response.text)
-            raise exception.StopExtraction(
-                "GraphQL query failed ('%s %s')",
-                response.status_code, response.reason)
+            raise exception.AbortExtraction(
+                f"GraphQL query failed "
+                f"('{response.status_code} {response.reason}')")
 
         return response.json()["data"]
 

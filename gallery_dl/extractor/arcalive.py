@@ -26,7 +26,7 @@ class ArcaliveExtractor(Extractor):
         for article in self.articles():
             article["_extractor"] = ArcalivePostExtractor
             board = self.board or article.get("boardSlug") or "breaking"
-            url = "{}/b/{}/{}".format(self.root, board, article["id"])
+            url = f"{self.root}/b/{board}/{article['id']}"
             yield Message.Queue, url, article
 
 
@@ -51,8 +51,8 @@ class ArcalivePostExtractor(ArcaliveExtractor):
         post["count"] = len(files)
         post["date"] = text.parse_datetime(
             post["createdAt"][:19], "%Y-%m-%dT%H:%M:%S")
-        post["post_url"] = post_url = "{}/b/{}/{}".format(
-            self.root, post["boardSlug"], post["id"])
+        post["post_url"] = post_url = \
+            f"{self.root}/b/{post['boardSlug']}/{post['id']}"
         post["_http_headers"] = {"Referer": post_url + "?p=1"}
 
         yield Message.Directory, post
@@ -86,8 +86,7 @@ class ArcalivePostExtractor(ArcaliveExtractor):
 
             fallback = ()
             query = f"?type=orig&{query}"
-            orig = text.extr(media, 'data-orig="', '"')
-            if orig:
+            if orig := text.extr(media, 'data-orig="', '"'):
                 path, _, ext = url.rpartition(".")
                 if ext != orig:
                     fallback = (url + query,)
@@ -171,9 +170,8 @@ class ArcaliveAPI():
             return data
 
         self.log.debug("Server response: %s", data)
-        msg = data.get("message")
-        raise exception.StopExtraction(
-            "API request failed%s", ": " + msg if msg else "")
+        msg = f": {msg}" if (msg := data.get("message")) else ""
+        raise exception.AbortExtraction(f"API request failed{msg}")
 
     def _pagination(self, endpoint, params, key):
         while True:

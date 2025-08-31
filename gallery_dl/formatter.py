@@ -28,21 +28,17 @@ def parse(format_string, default=NONE, fmt=format):
     except KeyError:
         pass
 
-    cls = StringFormatter
-    if format_string.startswith("\f"):
+    if format_string and format_string[0] == "\f":
         kind, _, format_string = format_string.partition(" ")
-        kind = kind[1:]
-
-        if kind == "T":
-            cls = TemplateFormatter
-        elif kind == "TF":
-            cls = TemplateFStringFormatter
-        elif kind == "E":
-            cls = ExpressionFormatter
-        elif kind == "M":
-            cls = ModuleFormatter
-        elif kind == "F":
-            cls = FStringFormatter
+        try:
+            cls = _FORMATTERS[kind[1:]]
+        except KeyError:
+            import logging
+            logging.getLogger("formatter").error(
+                "Invalid formatter type '%s'", kind[1:])
+            cls = StringFormatter
+    else:
+        cls = StringFormatter
 
     formatter = _CACHE[key] = cls(format_string, default, fmt)
     return formatter
@@ -208,6 +204,48 @@ class ExpressionFormatter():
         self.format_map = util.compile_expression(expression)
 
 
+class FStringFormatter():
+    """Generate text by evaluating an f-string literal"""
+
+    def __init__(self, fstring, default=NONE, fmt=None):
+        self.format_map = util.compile_expression(f'f"""{fstring}"""')
+
+
+def _init_jinja():
+    import jinja2
+    from . import config
+
+    if opts := config.get((), "jinja"):
+        JinjaFormatter.env = env = jinja2.Environment(
+            **opts.get("environment") or {})
+    else:
+        JinjaFormatter.env = jinja2.Environment()
+        return
+
+    if policies := opts.get("policies"):
+        env.policies.update(policies)
+
+    if path := opts.get("filters"):
+        module = util.import_file(path).__dict__
+        env.filters.update(
+            module["__filters__"] if "__filters__" in module else module)
+
+    if path := opts.get("tests"):
+        module = util.import_file(path).__dict__
+        env.tests.update(
+            module["__tests__"] if "__tests__" in module else module)
+
+
+class JinjaFormatter():
+    """Generate text by evaluating a Jinja template string"""
+    env = None
+
+    def __init__(self, source, default=NONE, fmt=None):
+        if self.env is None:
+            _init_jinja()
+        self.format_map = self.env.from_string(source).render
+
+
 class ModuleFormatter():
     """Generate text by calling an external function"""
 
@@ -215,13 +253,6 @@ class ModuleFormatter():
         module_name, _, function_name = function_spec.rpartition(":")
         module = util.import_file(module_name)
         self.format_map = getattr(module, function_name)
-
-
-class FStringFormatter():
-    """Generate text by evaluating an f-string literal"""
-
-    def __init__(self, fstring, default=NONE, fmt=None):
-        self.format_map = util.compile_expression(f'f"""{fstring}"""')
 
 
 class TemplateFormatter(StringFormatter):
@@ -240,6 +271,15 @@ class TemplateFStringFormatter(FStringFormatter):
         with open(util.expand_path(path)) as fp:
             fstring = fp.read()
         FStringFormatter.__init__(self, fstring, default, fmt)
+
+
+class TemplateJinjaFormatter(JinjaFormatter):
+    """Generate text by evaluating a Jinja template"""
+
+    def __init__(self, path, default=NONE, fmt=None):
+        with open(util.expand_path(path)) as fp:
+            source = fp.read()
+        JinjaFormatter.__init__(self, source, default, fmt)
 
 
 def parse_field_name(field_name):
@@ -492,6 +532,18 @@ _literal = Literal()
 
 _CACHE = {}
 _SEPARATOR = "/"
+_FORMATTERS = {
+    "E" : ExpressionFormatter,
+    "F" : FStringFormatter,
+    "J" : JinjaFormatter,
+    "M" : ModuleFormatter,
+    "S" : StringFormatter,
+    "T" : TemplateFormatter,
+    "TF": TemplateFStringFormatter,
+    "FT": TemplateFStringFormatter,
+    "TJ": TemplateJinjaFormatter,
+    "JT": TemplateJinjaFormatter,
+}
 _GLOBALS = {
     "_env": lambda: os.environ,
     "_lit": lambda: _literal,
@@ -513,6 +565,8 @@ _CONVERSIONS = {
     "U": text.unescape,
     "H": lambda s: text.unescape(text.remove_html(s)),
     "g": text.slugify,
+    "R": text.re(r"https?://[^\s\"']+").findall,
+    "W": text.sanitize_whitespace,
     "S": util.to_string,
     "s": str,
     "r": repr,

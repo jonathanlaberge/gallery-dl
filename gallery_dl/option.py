@@ -40,8 +40,8 @@ class DeprecatedConfigConstAction(argparse.Action):
     """Set argparse const values as config values + deprecation warning"""
     def __call__(self, parser, namespace, values, option_string=None):
         sys.stderr.write(
-            "warning: {} is deprecated. Use {} instead.\n".format(
-                "/".join(self.option_strings), self.choices))
+            f"Warning: {'/'.join(self.option_strings)} is deprecated. "
+            f"Use {self.choices} instead.\n")
         namespace.options.append(((), self.dest, self.const))
 
 
@@ -144,7 +144,7 @@ class UgoiraAction(argparse.Action):
             }
             namespace.options.append(((), "ugoira", "original"))
         else:
-            parser.error("Unsupported Ugoira format '{}'".format(value))
+            parser.error(f"Unsupported Ugoira format '{value}'")
 
         pp["name"] = "ugoira"
         pp["whitelist"] = ("pixiv", "danbooru")
@@ -276,7 +276,7 @@ def build_parser():
         help="Load external extractors from PATH",
     )
     general.add_argument(
-        "--user-agent",
+        "-a", "--user-agent",
         dest="user-agent", metavar="UA", action=ConfigAction,
         help="User-Agent request header",
     )
@@ -285,6 +285,11 @@ def build_parser():
         dest="clear_cache", metavar="MODULE",
         help="Delete cached login sessions, cookies, etc. for MODULE "
              "(ALL to delete everything)",
+    )
+    general.add_argument(
+        "--compat",
+        dest="category-map", nargs=0, action=ConfigConstAction, const="compat",
+        help="Restore legacy 'category' names",
     )
 
     update = parser.add_argument_group("Update Options")
@@ -534,6 +539,12 @@ def build_parser():
               "during data extraction"),
     )
     downloader.add_argument(
+        "--sleep-429",
+        dest="sleep-429", metavar="SECONDS", action=ConfigAction,
+        help=("Number of seconds to wait when receiving a "
+              "'429 Too Many Requests' response"),
+    )
+    downloader.add_argument(
         "--sleep-extractor",
         dest="sleep-extractor", metavar="SECONDS", action=ConfigAction,
         help=("Number of seconds to wait before starting data extraction "
@@ -653,14 +664,18 @@ def build_parser():
     selection = parser.add_argument_group("Selection Options")
     selection.add_argument(
         "-A", "--abort",
-        dest="abort", metavar="N", type=int,
-        help=("Stop current extractor run "
-              "after N consecutive file downloads were skipped"),
+        dest="abort", metavar="N[:TARGET]",
+        help=("Stop current extractor(s) "
+              "after N consecutive file downloads were skipped. "
+              "Specify a TARGET to set how many levels to ascend or "
+              "to which subcategory to jump to. "
+              "Examples: '-A 3', '-A 3:2', '-A 3:manga'"),
     )
     selection.add_argument(
         "-T", "--terminate",
-        dest="terminate", metavar="N", type=int,
-        help=("Stop current and parent extractor runs "
+        dest="terminate", metavar="N",
+        help=("Stop current & parent extractors "
+              "and proceed with the next input URL "
               "after N consecutive file downloads were skipped"),
     )
     selection.add_argument(
@@ -676,7 +691,7 @@ def build_parser():
     selection.add_argument(
         "--download-archive",
         dest="archive", metavar="FILE", action=ConfigAction,
-        help=("Record all downloaded or skipped files in FILE and "
+        help=("Record successfully downloaded files in FILE and "
               "skip downloading any file already in it"),
     )
     selection.add_argument(

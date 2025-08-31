@@ -64,8 +64,8 @@ class MangaparkBase():
             "variables"    : variables,
             "operationName": opname,
         }
-        return self.request(
-            url, method="POST", json=data).json()["data"].popitem()[1]
+        return self.request_json(
+            url, method="POST", json=data)["data"].popitem()[1]
 
 
 class MangaparkChapterExtractor(MangaparkBase, ChapterExtractor):
@@ -145,8 +145,7 @@ class MangaparkMangaExtractor(MangaparkBase, Extractor):
             yield Message.Queue, url, data
 
     def chapters(self):
-        source = self.config("source")
-        if source:
+        if source := self.config("source"):
             source_id = self._select_source(source)
             self.log.debug("Requesting chapters for source_id %s", source_id)
             chapters = self._extract_chapters_source(source_id)
@@ -176,8 +175,8 @@ class MangaparkMangaExtractor(MangaparkBase, Extractor):
                     not lang or data["lang"] == lang):
                 return data["id"]
 
-        raise exception.StopExtraction(
-            "'%s' does not match any available source", source)
+        raise exception.AbortExtraction(
+            f"'{source}' does not match any available source")
 
 
 QUERIES = {
