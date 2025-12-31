@@ -278,8 +278,21 @@ __tests__ = (
 
 {
     "#url"     : "https://www.instagram.com/reel/CDg_6Y1pxWu/",
+    "#category": ("", "instagram", "reel"),
+    "#class"   : instagram.InstagramPostExtractor,
+},
+
+{
+    "#url"     : "https://www.instagram.com/reels/CDg_6Y1pxWu/",
+    "#category": ("", "instagram", "reel"),
+    "#class"   : instagram.InstagramPostExtractor,
+},
+
+{
+    "#url"     : "https://www.instagram.com/share/BACiUUUYQV",
     "#category": ("", "instagram", "post"),
     "#class"   : instagram.InstagramPostExtractor,
+    "shortcode"  : "C6q-XdvsU5v",
 },
 
 {
@@ -291,7 +304,7 @@ __tests__ = (
 
 {
     "#url"     : "https://www.instagram.com/share/reel/BARSSL4rTu",
-    "#category": ("", "instagram", "post"),
+    "#category": ("", "instagram", "reel"),
     "#class"   : instagram.InstagramPostExtractor,
     "shortcode"  : "DHbVbT4Jx0c",
 }

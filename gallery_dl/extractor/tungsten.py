@@ -23,10 +23,10 @@ class TungstenExtractor(Extractor):
     def items(self):
         for post in self.posts():
             url = post["original_url"]
-            post["date"] = text.parse_datetime(post["created_at"])
+            post["date"] = self.parse_datetime_iso(post["created_at"])
             post["filename"] = url[url.rfind("/")+1:]
             post["extension"] = "webp"
-            yield Message.Directory, post
+            yield Message.Directory, "", post
             yield Message.Url, url, post
 
     def _pagination(self, url, params):
@@ -52,7 +52,7 @@ class TungstenExtractor(Extractor):
 
 class TungstenPostExtractor(TungstenExtractor):
     subcategory = "post"
-    pattern = rf"{BASE_PATTERN}/post/(\w+)"
+    pattern = BASE_PATTERN + r"/post/(\w+)"
     example = "https://tungsten.run/post/AbCdEfGhIjKlMnOp"
 
     def posts(self):
@@ -64,7 +64,7 @@ class TungstenPostExtractor(TungstenExtractor):
 
 class TungstenModelExtractor(TungstenExtractor):
     subcategory = "model"
-    pattern = rf"{BASE_PATTERN}/model/(\w+)(?:/?\?model_version=(\w+))?"
+    pattern = BASE_PATTERN + r"/model/(\w+)(?:/?\?model_version=(\w+))?"
     example = "https://tungsten.run/model/AbCdEfGhIjKlM"
 
     def posts(self):
@@ -87,14 +87,17 @@ class TungstenModelExtractor(TungstenExtractor):
 
 class TungstenUserExtractor(TungstenExtractor):
     subcategory = "user"
-    pattern = rf"{BASE_PATTERN}/user/([^/?#]+)"
-    example = "https://tungsten.run/user/USER/posts"
+    pattern = BASE_PATTERN + r"/user/([^/?#]+)(?:/posts)?/?(?:\?([^#]+))?"
+    example = "https://tungsten.run/user/USER"
 
     def posts(self):
-        url = f"{self.root}/user/{self.groups[0]}"
+        user, qs = self.groups
+        url = f"{self.root}/user/{user}"
         page = self.request(url).text
         uuid_user = text.extr(page, '"user":{"uuid":"', '"')
 
         url = f"https://api.tungsten.run/v1/users/{uuid_user}/posts"
-        params = {"sort": "top_all_time"}
+        params = text.parse_query(qs)
+        params.setdefault("sort", "top_all_time")
+        self.kwdict["search_tags"] = params.get("tag", "")
         return self._pagination(url, params)

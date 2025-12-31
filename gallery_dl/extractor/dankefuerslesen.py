@@ -34,7 +34,7 @@ class DankefuerslesenChapterExtractor(DankefuerslesenBase, ChapterExtractor):
     def _init(self):
         self.zip = self.config("zip", False)
         if self.zip:
-            self.filename_fmt = f"{self.directory_fmt[-1]}.{{extension}}"
+            self.filename_fmt = self.directory_fmt[-1] + ".{extension}"
             self.directory_fmt = self.directory_fmt[:-1]
 
     def metadata(self, page):
@@ -68,7 +68,7 @@ class DankefuerslesenChapterExtractor(DankefuerslesenBase, ChapterExtractor):
             "chapter_minor": minor,
             "group"     : manga["groups"][group_id].split(" & "),
             "group_id"  : text.parse_int(group_id),
-            "date"      : text.parse_timestamp(data["release_date"][group_id]),
+            "date"      : self.parse_timestamp(data["release_date"][group_id]),
             "lang"      : util.NONE,
             "language"  : util.NONE,
         }

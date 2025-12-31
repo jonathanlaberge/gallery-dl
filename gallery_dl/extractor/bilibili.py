@@ -74,7 +74,7 @@ class BilibiliArticleExtractor(BilibiliExtractor):
                     pass
 
         article["count"] = len(pics)
-        yield Message.Directory, article
+        yield Message.Directory, "", article
         for article["num"], pic in enumerate(pics, 1):
             url = pic["url"]
             article.update(pic)
@@ -146,7 +146,7 @@ class BilibiliAPI():
             except Exception:
                 if "window._riskdata_" not in page:
                     raise exception.AbortExtraction(
-                        f"{article_id}: Unable to extract INITIAL_STATE data")
+                        article_id + ": Unable to extract INITIAL_STATE data")
             self.extractor.wait(seconds=300)
 
     def user_favlist(self):
