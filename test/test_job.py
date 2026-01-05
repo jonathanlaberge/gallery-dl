@@ -214,7 +214,6 @@ Request interval (default):
     def test_base_category(self):
         extr = TestExtractor.from_url("test:")
         extr.basecategory = "test_basecategory"
-        extr.basesubcategory = "test_basesubcategory"
 
         self.assertEqual(self._capture_stdout(extr), """\
 Category / Subcategory / Basecategory
@@ -377,7 +376,7 @@ class TestExtractor(Extractor):
         root = "https://example.org"
         user = self.user
 
-        yield Message.Directory, "", {
+        yield Message.Directory, {
             "user": user,
             "author": user,
         }

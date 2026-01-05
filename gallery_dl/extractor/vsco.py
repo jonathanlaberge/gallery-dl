@@ -22,7 +22,7 @@ class VscoExtractor(Extractor):
     directory_fmt = ("{category}", "{user}")
     filename_fmt = "{id}.{extension}"
     archive_fmt = "{id}"
-    browser = "firefox"
+    tls12 = False
 
     def __init__(self, match):
         Extractor.__init__(self, match)
@@ -30,7 +30,7 @@ class VscoExtractor(Extractor):
 
     def items(self):
         videos = self.config("videos", True)
-        yield Message.Directory, "", {"user": self.user}
+        yield Message.Directory, {"user": self.user}
         for img in self.images():
 
             if not img:
@@ -62,7 +62,7 @@ class VscoExtractor(Extractor):
                 "grid"  : img["grid_name"],
                 "meta"  : img.get("image_meta") or {},
                 "tags"  : [tag["text"] for tag in img.get("tags") or ()],
-                "date"  : self.parse_timestamp(img["upload_date"] // 1000),
+                "date"  : text.parse_timestamp(img["upload_date"] // 1000),
                 "video" : img["is_video"],
                 "width" : img["width"],
                 "height": img["height"],
@@ -158,7 +158,7 @@ class VscoGalleryExtractor(VscoExtractor):
         tkn = data["users"]["currentUser"]["tkn"]
         sid = str(data["sites"]["siteByUsername"][self.user]["site"]["id"])
 
-        url = self.root + "/api/3.0/medias/profile"
+        url = f"{self.root}/api/3.0/medias/profile"
         params = {
             "site_id"  : sid,
             "limit"    : "14",

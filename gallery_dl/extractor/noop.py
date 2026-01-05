@@ -8,7 +8,7 @@
 
 """noop extractor"""
 
-from .common import Extractor
+from .common import Extractor, Message
 
 
 class NoopExtractor(Extractor):
@@ -17,9 +17,11 @@ class NoopExtractor(Extractor):
     example = "noop"
 
     def items(self):
+        # yield *something* to prevent a 'No results' message
+        yield Message.Version, 1
+
         # Save cookies manually, since it happens automatically only after
         # extended extractor initialization, i.e. Message.Directory, which
         # itself might cause some unintended effects.
         if self.cookies:
             self.cookies_store()
-        return iter(((-1, "", None),))

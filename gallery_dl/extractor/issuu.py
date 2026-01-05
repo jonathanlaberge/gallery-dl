@@ -36,8 +36,8 @@ class IssuuPublicationExtractor(IssuuBase, GalleryExtractor):
             '{"":' + data.replace('\\"', '"')))
 
         doc = data["initialDocumentData"]["document"]
-        doc["date"] = self.parse_datetime_iso(
-            doc["originalPublishDateInISOString"])
+        doc["date"] = text.parse_datetime(
+            doc["originalPublishDateInISOString"], "%Y-%m-%dT%H:%M:%S.%fZ")
 
         self.count = text.parse_int(doc["pageCount"])
         self.base = (f"https://image.isu.pub/{doc['revisionId']}-"
@@ -68,7 +68,7 @@ class IssuuUserExtractor(IssuuBase, Extractor):
                 data = text.extr(html, '\\"docs\\":', '}]\\n"]')
                 docs = util.json_loads(data.replace('\\"', '"'))
             except Exception as exc:
-                self.log.traceback(exc)
+                self.log.debug("", exc_info=exc)
                 return
 
             for publication in docs:

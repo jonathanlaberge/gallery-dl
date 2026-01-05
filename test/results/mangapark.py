@@ -5,6 +5,7 @@
 # published by the Free Software Foundation.
 
 from gallery_dl.extractor import mangapark
+import datetime
 
 
 __tests__ = (
@@ -114,7 +115,7 @@ __tests__ = (
     "chapter"      : int,
     "chapter_id"   : r"re:\d+",
     "chapter_minor": str,
-    "date"         : "type:datetime",
+    "date"         : datetime.datetime,
     "lang"         : "en",
     "language"     : "English",
     "manga_id"     : 114972,

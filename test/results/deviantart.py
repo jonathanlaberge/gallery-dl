@@ -5,6 +5,7 @@
 # published by the Free Software Foundation.
 
 from gallery_dl.extractor import deviantart
+import datetime
 from gallery_dl import exception
 
 
@@ -59,7 +60,7 @@ __tests__ = (
         "transparency": bool,
         "width"       : int,
     },
-    "date"            : "type:datetime",
+    "date"            : datetime.datetime,
     "deviationid"     : str,
     "?download_filesize": int,
     "extension"       : str,
@@ -202,11 +203,6 @@ __tests__ = (
 {
     "#url"     : "https://shimoda7.deviantart.com/gallery/?catpath=/",
     "#category": ("", "deviantart", "gallery"),
-    "#class"   : deviantart.DeviantartGalleryExtractor,
-},
-
-{
-    "#url"     : "https://www.deviantart.com/yinnyyany/gallery/all?order=newest",
     "#class"   : deviantart.DeviantartGalleryExtractor,
 },
 

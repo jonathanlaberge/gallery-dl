@@ -40,7 +40,7 @@ class _8musesAlbumExtractor(Extractor):
             if images := data.get("pictures"):
                 count = len(images)
                 album = self._make_album(data["album"])
-                yield Message.Directory, "", {"album": album, "count": count}
+                yield Message.Directory, {"album": album, "count": count}
                 for num, image in enumerate(images, 1):
                     url = self.root + "/image/fl/" + image["publicUri"]
                     img = {
@@ -85,7 +85,8 @@ class _8musesAlbumExtractor(Extractor):
             "parent" : text.parse_int(album["parentId"]),
             "views"  : text.parse_int(album["numberViews"]),
             "likes"  : text.parse_int(album["numberLikes"]),
-            "date"   : self.parse_datetime_iso(album["updatedAt"]),
+            "date"   : text.parse_datetime(
+                album["updatedAt"], "%Y-%m-%dT%H:%M:%S.%fZ"),
         }
 
     def _unobfuscate(self, data):

@@ -37,16 +37,4 @@ __tests__ = (
     "#class"   : danbooru.DanbooruPopularExtractor,
 },
 
-{
-    "#url"     : "https://booru.borvar.art/posts/random?tags=chibi&z=1",
-    "#category": ("Danbooru", "booruvar", "random"),
-    "#class"   : danbooru.DanbooruRandomExtractor,
-},
-
-{
-    "#url"     : "https://booru.borvar.art/posts/random",
-    "#category": ("Danbooru", "booruvar", "random"),
-    "#class"   : danbooru.DanbooruRandomExtractor,
-},
-
 )

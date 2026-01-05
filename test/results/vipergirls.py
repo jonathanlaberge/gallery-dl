@@ -13,7 +13,7 @@ __tests__ = (
     "#category": ("", "vipergirls", "thread"),
     "#class"   : vipergirls.VipergirlsThreadExtractor,
     "#count"   : 225,
-    "#sha1_url": "3a127b2d4f61d538ac4ad5340a787ef9f0b05b1f",
+    "#sha1_url": "0d75cb42777f5bebc0d284d1d38cb90c750c61d9",
 
     "count"       : {112, 113},
     "num"         : range(1, 113),
@@ -29,7 +29,6 @@ __tests__ = (
     "#url"     : "https://vipergirls.to/threads/6858916-Karina/page4",
     "#category": ("", "vipergirls", "thread"),
     "#class"   : vipergirls.VipergirlsThreadExtractor,
-    "#options" : {"order-posts": "asc"},
     "#count"   : 1279,
 },
 

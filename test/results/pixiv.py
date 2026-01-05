@@ -107,7 +107,6 @@ __tests__ = (
     "#comment" : "Invalid PHPSESSID cookie",
     "#class"   : pixiv.PixivArtworksExtractor,
     "#options" : {"cookies": {"PHPSESSID": "12345_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}},
-    "#log"     : "Invalid 'PHPSESSID' cookie",
     "#sha1_url": "852c31ad83b6840bacbce824d85f2a997889efb7",
 },
 
@@ -669,8 +668,6 @@ __tests__ = (
     "#class"   : pixiv.PixivSketchExtractor,
     "#pattern" : r"https://img\-sketch\.pixiv\.net/uploads/medium/file/\d+/\d+\.(jpg|png)",
     "#count"   : ">= 35",
-
-    "date": "type:datetime",
 },
 
 )

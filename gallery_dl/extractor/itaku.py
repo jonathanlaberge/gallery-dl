@@ -32,9 +32,10 @@ class ItakuExtractor(Extractor):
     def items(self):
         if images := self.images():
             for image in images:
-                image["date"] = self.parse_datetime_iso(image["date_added"])
+                image["date"] = text.parse_datetime(
+                    image["date_added"], "%Y-%m-%dT%H:%M:%S.%fZ")
                 for category, tags in image.pop("categorized_tags").items():
-                    image["tags_" + category.lower()] = [
+                    image[f"tags_{category.lower()}"] = [
                         t["name"] for t in tags]
                 image["tags"] = [t["name"] for t in image["tags"]]
 
@@ -51,7 +52,7 @@ class ItakuExtractor(Extractor):
                 else:
                     url = image["image"]
 
-                yield Message.Directory, "", image
+                yield Message.Directory, image
                 yield Message.Url, url, text.nameext_from_url(url, image)
             return
 
@@ -59,23 +60,24 @@ class ItakuExtractor(Extractor):
             for post in posts:
                 images = post.pop("gallery_images") or ()
                 post["count"] = len(images)
-                post["date"] = self.parse_datetime_iso(post["date_added"])
+                post["date"] = text.parse_datetime(
+                    post["date_added"], "%Y-%m-%dT%H:%M:%S.%fZ")
                 post["tags"] = [t["name"] for t in post["tags"]]
 
-                yield Message.Directory, "", post
+                yield Message.Directory, post
                 for post["num"], image in enumerate(images, 1):
                     post["file"] = image
-                    image["date"] = self.parse_datetime_iso(
-                        image["date_added"])
+                    image["date"] = text.parse_datetime(
+                        image["date_added"], "%Y-%m-%dT%H:%M:%S.%fZ")
 
                     url = image["image"]
                     yield Message.Url, url, text.nameext_from_url(url, post)
             return
 
         if users := self.users():
-            base = self.root + "/profile/"
+            base = f"{self.root}/profile/"
             for user in users:
-                url = base + user["owner_username"]
+                url = f"{base}{user['owner_username']}"
                 user["_extractor"] = ItakuUserExtractor
                 yield Message.Queue, url, user
             return
@@ -257,7 +259,7 @@ class ItakuAPI():
             "cursor"    : None,
             "date_range": "",
             "maturity_rating": ("SFW", "Questionable", "NSFW"),
-            "ordering"  : self._order(),
+            "ordering"  : "-date_added",
             "page"      : "1",
             "page_size" : "30",
             "visibility": ("PUBLIC", "PROFILE_ONLY"),
@@ -271,7 +273,7 @@ class ItakuAPI():
             "cursor"    : None,
             "date_range": "",
             "maturity_rating": ("SFW", "Questionable", "NSFW"),
-            "ordering"  : self._order(),
+            "ordering"  : "-date_added",
             "page"      : "1",
             "page_size" : "30",
             **params,
@@ -282,7 +284,7 @@ class ItakuAPI():
         endpoint = "/user_profiles/"
         params = {
             "cursor"   : None,
-            "ordering" : self._order(),
+            "ordering" : "-date_added",
             "page"     : "1",
             "page_size": "50",
             "sfw_only" : "false",
@@ -328,11 +330,3 @@ class ItakuAPI():
                 return
 
             data = self._call(url_next)
-
-    def _order(self):
-        if order := self.extractor.config("order"):
-            if order in {"a", "asc", "r", "reverse"}:
-                return "date_added"
-            if order not in {"d", "desc"}:
-                return order
-        return "-date_added"

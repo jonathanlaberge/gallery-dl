@@ -35,7 +35,8 @@ class HentaihandGalleryExtractor(GalleryExtractor):
             "language"   : info["language"]["name"],
             "lang"       : util.language_to_code(info["language"]["name"]),
             "tags"       : [t["slug"] for t in info["tags"]],
-            "date"       : self.parse_datetime_iso(info["uploaded_at"]),
+            "date"       : text.parse_datetime(
+                info["uploaded_at"], "%Y-%m-%d"),
         }
         for key in ("artists", "authors", "groups", "characters",
                     "relationships", "parodies"):

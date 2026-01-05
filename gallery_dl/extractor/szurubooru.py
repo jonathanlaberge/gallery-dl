@@ -57,7 +57,8 @@ class SzurubooruExtractor(booru.BooruExtractor):
         return url
 
     def _prepare(self, post):
-        post["date"] = self.parse_datetime_iso(post["creationTime"])
+        post["date"] = text.parse_datetime(
+            post["creationTime"], "%Y-%m-%dT%H:%M:%S.%fZ")
 
         tags = []
         tags_categories = collections.defaultdict(list)

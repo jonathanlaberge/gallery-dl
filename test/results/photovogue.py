@@ -5,6 +5,7 @@
 # published by the Free Software Foundation.
 
 from gallery_dl.extractor import photovogue
+import datetime
 
 
 __tests__ = (
@@ -20,7 +21,7 @@ __tests__ = (
     "#class"   : photovogue.PhotovogueUserExtractor,
     "#pattern" : "https://images.vogue.it/Photovogue/[^/]+_gallery.jpg",
 
-    "date"           : "type:datetime",
+    "date"           : datetime.datetime,
     "favorite_count" : int,
     "favorited"      : list,
     "id"             : int,

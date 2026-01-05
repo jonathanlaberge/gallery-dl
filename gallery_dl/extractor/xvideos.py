@@ -117,5 +117,5 @@ class XvideosUserExtractor(XvideosBase, Extractor):
 
         base = f"{self.root}/profiles/{self.user}/photos/"
         for gallery in galleries:
-            url = base + str(gallery["id"])
+            url = f"{base}{gallery['id']}"
             yield Message.Queue, url, gallery

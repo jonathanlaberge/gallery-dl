@@ -5,6 +5,7 @@
 # published by the Free Software Foundation.
 
 from gallery_dl.extractor import picarto
+import datetime
 
 
 __tests__ = (
@@ -15,7 +16,7 @@ __tests__ = (
     "#pattern" : r"https://images\.picarto\.tv/gallery/\d/\d\d/\d+/artwork/[0-9a-f-]+/large-[0-9a-f]+\.(jpg|png|gif)",
     "#count"   : ">= 7",
 
-    "date": "type:datetime",
+    "date": datetime.datetime,
 },
 
 )

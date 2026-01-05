@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-# Copyright 2015-2025 Mike Fährmann
+# Copyright 2015-2021 Mike Fährmann
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License version 2 as
@@ -14,14 +14,13 @@ class Message():
     is one of the following identifiers. This message-identifier determines
     the type and meaning of the other elements in such a tuple.
 
-    - Message.Version:  # obsolete
+    - Message.Version:
       - Message protocol version (currently always '1')
       - 2nd element specifies the version of all following messages as integer
 
     - Message.Directory:
       - Sets the target directory for all following images
-      - 2nd element is unused
-      - 3rd element is a dictionary containing general metadata
+      - 2nd element is a dictionary containing general metadata
 
     - Message.Url:
       - Image URL and its metadata
@@ -46,7 +45,7 @@ class Message():
       - The additional URLs serve as a fallback if the primary one fails
     """
 
-    #  Version = 1
+    Version = 1
     Directory = 2
     Url = 3
     #  Headers = 4

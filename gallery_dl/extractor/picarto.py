@@ -29,9 +29,10 @@ class PicartoGalleryExtractor(Extractor):
 
     def items(self):
         for post in self.posts():
-            post["date"] = self.parse_datetime_iso(post["created_at"])
+            post["date"] = text.parse_datetime(
+                post["created_at"], "%Y-%m-%d %H:%M:%S")
             variations = post.pop("variations", ())
-            yield Message.Directory, "", post
+            yield Message.Directory, post
 
             image = post["default_image"]
             if not image:

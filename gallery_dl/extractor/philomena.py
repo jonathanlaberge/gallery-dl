@@ -36,7 +36,8 @@ class PhilomenaExtractor(BooruExtractor):
         return url
 
     def _prepare(self, post):
-        post["date"] = self.parse_datetime_iso(post["created_at"][:19])
+        post["date"] = text.parse_datetime(
+            post["created_at"][:19], "%Y-%m-%dT%H:%M:%S")
 
 
 BASE_PATTERN = PhilomenaExtractor.update({
@@ -116,7 +117,7 @@ class PhilomenaGalleryExtractor(PhilomenaExtractor):
             raise exception.NotFoundError("gallery")
 
     def posts(self):
-        gallery_id = "gallery_id:" + self.groups[-1]
+        gallery_id = f"gallery_id:{self.groups[-1]}"
         params = {"sd": "desc", "sf": gallery_id, "q": gallery_id}
         return self.api.search(params)
 

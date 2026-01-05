@@ -45,9 +45,9 @@ class SizebooruExtractor(BooruExtractor):
 
         post.update({
             "id"       : text.parse_int(post_id),
-            "date"     : self.parse_datetime(
+            "date"     : text.parse_datetime(
                 extr("<b>Posted Date:</b> ", "<"), "%m/%d/%Y"),
-            "date_approved": self.parse_datetime(
+            "date_approved": text.parse_datetime(
                 extr("<b>Approved Date:</b> ", "<"), "%m/%d/%Y"),
             "approver" : text.remove_html(extr("<b>Approved By:</b>", "</")),
             "uploader" : text.remove_html(extr("<b>Posted By:</b>", "</")),
@@ -98,7 +98,7 @@ class SizebooruExtractor(BooruExtractor):
 class SizebooruPostExtractor(SizebooruExtractor):
     """Extractor for sizebooru posts"""
     subcategory = "post"
-    pattern = BASE_PATTERN + r"/Details/(\d+)"
+    pattern = rf"{BASE_PATTERN}/Details/(\d+)"
     example = "https://sizebooru.com/Details/12345"
 
     def posts(self):
@@ -109,7 +109,7 @@ class SizebooruTagExtractor(SizebooruExtractor):
     """Extractor for sizebooru tag searches"""
     subcategory = "tag"
     directory_fmt = ("{category}", "{search_tags}")
-    pattern = BASE_PATTERN + r"/Search/([^/?#]+)"
+    pattern = rf"{BASE_PATTERN}/Search/([^/?#]+)"
     example = "https://sizebooru.com/Search/TAG"
 
     def posts(self):
@@ -122,7 +122,7 @@ class SizebooruGalleryExtractor(SizebooruExtractor):
     """Extractor for sizebooru galleries"""
     subcategory = "gallery"
     directory_fmt = ("{category}", "{gallery_name} ({gallery_id})")
-    pattern = BASE_PATTERN + r"/Galleries/List/(\d+)"
+    pattern = rf"{BASE_PATTERN}/Galleries/List/(\d+)"
     example = "https://sizebooru.com/Galleries/List/123"
 
     def posts(self):
@@ -140,7 +140,7 @@ class SizebooruUserExtractor(SizebooruExtractor):
     """Extractor for a sizebooru user's uploads"""
     subcategory = "user"
     directory_fmt = ("{category}", "Uploads {user}")
-    pattern = BASE_PATTERN + r"/Profile/Uploads/([^/?#]+)"
+    pattern = rf"{BASE_PATTERN}/Profile/Uploads/([^/?#]+)"
     example = "https://sizebooru.com/Profile/Uploads/USER"
 
     def posts(self):
@@ -153,7 +153,7 @@ class SizebooruFavoriteExtractor(SizebooruExtractor):
     """Extractor for a sizebooru user's favorites"""
     subcategory = "favorite"
     directory_fmt = ("{category}", "Favorites {user}")
-    pattern = BASE_PATTERN + r"/Profile/Favorites/([^/?#]+)"
+    pattern = rf"{BASE_PATTERN}/Profile/Favorites/([^/?#]+)"
     example = "https://sizebooru.com/Profile/Favorites/USER"
 
     def posts(self):

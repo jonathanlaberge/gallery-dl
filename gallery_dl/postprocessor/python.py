@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-# Copyright 2023-2025 Mike Fährmann
+# Copyright 2023 Mike Fährmann
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License version 2 as
@@ -17,16 +17,12 @@ class PythonPP(PostProcessor):
     def __init__(self, job, options):
         PostProcessor.__init__(self, job)
 
-        mode = options.get("mode")
-        if mode == "eval" or not mode and options.get("expression"):
-            self.function = util.compile_expression(options["expression"])
-        else:
-            spec = options["function"]
-            module_name, _, function_name = spec.rpartition(":")
-            module = util.import_file(module_name)
-            self.function = getattr(module, function_name)
+        spec = options["function"]
+        module_name, _, function_name = spec.rpartition(":")
+        module = util.import_file(module_name)
+        self.function = getattr(module, function_name)
 
-        if archive := self._archive_init(job, options):
+        if self._init_archive(job, options):
             self.run = self.run_archive
 
         events = options.get("event")
@@ -35,9 +31,6 @@ class PythonPP(PostProcessor):
         elif isinstance(events, str):
             events = events.split(",")
         job.register_hooks({event: self.run for event in events}, options)
-
-        if archive:
-            self._archive_register(job)
 
     def run(self, pathfmt):
         self.function(pathfmt.kwdict)

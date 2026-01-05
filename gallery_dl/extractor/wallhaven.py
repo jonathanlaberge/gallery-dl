@@ -29,7 +29,7 @@ class WallhavenExtractor(Extractor):
             self._transform(wp)
             wp.update(metadata)
             url = wp["url"]
-            yield Message.Directory, "", wp
+            yield Message.Directory, wp
             yield Message.Url, url, text.nameext_from_url(url, wp)
 
     def wallpapers(self):
@@ -43,7 +43,8 @@ class WallhavenExtractor(Extractor):
         wp["url"] = wp.pop("path")
         if "tags" in wp:
             wp["tags"] = [t["name"] for t in wp["tags"]]
-        wp["date"] = self.parse_datetime_iso(wp.pop("created_at"))
+        wp["date"] = text.parse_datetime(
+            wp.pop("created_at"), "%Y-%m-%d %H:%M:%S")
         wp["width"] = wp.pop("dimension_x")
         wp["height"] = wp.pop("dimension_y")
         wp["wh_category"] = wp["category"]
@@ -113,7 +114,7 @@ class WallhavenCollectionsExtractor(WallhavenExtractor):
         base = f"{self.root}/user/{self.username}/favorites/"
         for collection in self.api.collections(self.username):
             collection["_extractor"] = WallhavenCollectionExtractor
-            url = base + str(collection["id"])
+            url = f"{base}{collection['id']}"
             yield Message.Queue, url, collection
 
 

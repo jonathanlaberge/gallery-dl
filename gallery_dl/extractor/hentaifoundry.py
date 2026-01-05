@@ -43,7 +43,7 @@ class HentaifoundryExtractor(Extractor):
         for post_url in util.advance(self.posts(), self.start_post):
             image = self._parse_post(post_url)
             image.update(data)
-            yield Message.Directory, "", image
+            yield Message.Directory, image
             yield Message.Url, image["src"], image
 
     def skip(self, num):
@@ -86,8 +86,7 @@ class HentaifoundryExtractor(Extractor):
                 .replace("\r\n", "\n")),
             "ratings"    : [text.unescape(r) for r in text.extract_iter(extr(
                 "class='ratings_box'", "</div>"), "title='", "'")],
-            "categories" : self._extract_categories(extr),
-            "date"       : self.parse_datetime_iso(extr("datetime='", "'")),
+            "date"       : text.parse_datetime(extr("datetime='", "'")),
             "views"      : text.parse_int(extr(">Views</span>", "<")),
             "score"      : text.parse_int(extr(">Vote Score</span>", "<")),
             "media"      : text.unescape(extr(">Media</span>", "<").strip()),
@@ -127,7 +126,7 @@ class HentaifoundryExtractor(Extractor):
             "title"   : text.unescape(extr(
                 "<div class='titlebar'>", "</a>").rpartition(">")[2]),
             "author"  : text.unescape(extr('alt="', '"')),
-            "date"    : self.parse_datetime(extr(
+            "date"    : text.parse_datetime(extr(
                 ">Updated<", "</span>").rpartition(">")[2], "%B %d, %Y"),
             "status"  : extr("class='indent'>", "<"),
         }
@@ -137,21 +136,14 @@ class HentaifoundryExtractor(Extractor):
                 ">" + c + ":</span>", "<").replace(",", ""))
 
         data["description"] = text.unescape(extr(
-            "class='storyDescript'>", '<div class="storyRead">')).replace(
-            "\r\n", "\n")
-        path = extr('class="pdfLink" href="', '"')
+            "class='storyDescript'>", "<div"))
+        path = extr('href="', '"')
         data["src"] = self.root + path
         data["index"] = text.parse_int(path.rsplit("/", 2)[1])
-        data["categories"] = self._extract_categories(extr)
         data["ratings"] = [text.unescape(r) for r in text.extract_iter(extr(
             "class='ratings_box'", "</div>"), "title='", "'")]
 
         return text.nameext_from_url(data["src"], data)
-
-    def _extract_categories(self, extr):
-        return [text.unescape(text.extr(c, ">", "<"))
-                for c in extr('class="categoryBreadcrumbs">', "</span>")
-                .split("&raquo;")]
 
     def _request_check(self, url, **kwargs):
         self.request = self._request_original
@@ -331,7 +323,7 @@ class HentaifoundryImageExtractor(HentaifoundryExtractor):
                     f"/{self.index}/?enterAgree=1")
         image = self._parse_post(post_url)
         image["user"] = self.user
-        yield Message.Directory, "", image
+        yield Message.Directory, image
         yield Message.Url, image["src"], image
 
 
@@ -346,7 +338,7 @@ class HentaifoundryStoriesExtractor(HentaifoundryExtractor):
         self._init_site_filters()
         for story_html in util.advance(self.stories(), self.start_post):
             story = self._parse_story(story_html)
-            yield Message.Directory, "", story
+            yield Message.Directory, story
             yield Message.Url, story["src"], story
 
     def stories(self):
@@ -371,5 +363,5 @@ class HentaifoundryStoryExtractor(HentaifoundryExtractor):
         story_url = (f"{self.root}/stories/user/{self.user}"
                      f"/{self.index}/x?enterAgree=1")
         story = self._parse_story(self.request(story_url).text)
-        yield Message.Directory, "", story
+        yield Message.Directory, story
         yield Message.Url, story["src"], story

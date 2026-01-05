@@ -9,7 +9,8 @@
 """Extractors for https://www.sex.com/"""
 
 from .common import Extractor, Message
-from .. import text, dt
+from .. import text
+from datetime import datetime
 
 BASE_PATTERN = r"(?:https?://)?(?:www\.)?sex\.com(?:/[a-z]{2})?"
 
@@ -25,7 +26,7 @@ class SexcomExtractor(Extractor):
     def items(self):
         self.gifs = self.config("gifs", True)
 
-        yield Message.Directory, "", self.metadata()
+        yield Message.Directory, self.metadata()
         for pin in map(self._parse_pin, self.pins()):
             if not pin:
                 continue
@@ -33,10 +34,10 @@ class SexcomExtractor(Extractor):
             url = pin["url"]
             parts = url.rsplit("/", 4)
             try:
-                pin["date_url"] = d = dt.datetime(
+                pin["date_url"] = dt = datetime(
                     int(parts[1]), int(parts[2]), int(parts[3]))
                 if "date" not in pin:
-                    pin["date"] = d
+                    pin["date"] = dt
             except Exception:
                 pass
             pin["tags"] = [t[1:] for t in pin["tags"]]
@@ -135,7 +136,7 @@ class SexcomExtractor(Extractor):
             text.nameext_from_url(data["url"], data)
 
         data["uploader"] = extr('itemprop="author">', '<')
-        data["date"] = dt.parse_iso(extr('datetime="', '"'))
+        data["date"] = text.parse_datetime(extr('datetime="', '"'))
         data["tags"] = text.split_html(extr('class="tags"> Tags', '</div>'))
         data["comments"] = text.parse_int(extr('Comments (', ')'))
 
@@ -269,23 +270,6 @@ class SexcomBoardExtractor(SexcomExtractor):
         return self._pagination(url)
 
 
-class SexcomFeedExtractor(SexcomExtractor):
-    """Extractor for pins from your account's main feed on www.sex.com"""
-    subcategory = "feed"
-    directory_fmt = ("{category}", "feed")
-    pattern = BASE_PATTERN + r"/feed"
-    example = "https://www.sex.com/feed/"
-
-    def metadata(self):
-        return {"feed": True}
-
-    def pins(self):
-        if not self.cookies_check(("sess_sex",)):
-            self.log.warning("no 'sess_sex' cookie set")
-        url = self.root + "/feed/"
-        return self._pagination(url)
-
-
 class SexcomSearchExtractor(SexcomExtractor):
     """Extractor for search results on www.sex.com"""
     subcategory = "search"
@@ -330,7 +314,7 @@ class SexcomSearchExtractor(SexcomExtractor):
 
                 parts = path.rsplit("/", 4)
                 try:
-                    pin["date_url"] = pin["date"] = dt.datetime(
+                    pin["date_url"] = pin["date"] = datetime(
                         int(parts[1]), int(parts[2]), int(parts[3]))
                 except Exception:
                     pass
@@ -341,11 +325,11 @@ class SexcomSearchExtractor(SexcomExtractor):
                     pin["type"] = "gif"
                     if gifs and pin["extension"] == "webp":
                         pin["extension"] = "gif"
-                        pin["_fallback"] = (root + path,)
-                        path = path[:-4] + "gif"
+                        pin["_fallback"] = (f"{root}{path}",)
+                        path = f"{path[:-4]}gif"
 
-                pin["url"] = root + path
-                yield Message.Directory, "", pin
+                pin["url"] = f"{root}{path}"
+                yield Message.Directory, pin
                 yield Message.Url, pin["url"], pin
 
             if params["page"] >= data["paging"]["numberOfPages"]:

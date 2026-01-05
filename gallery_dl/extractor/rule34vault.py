@@ -36,7 +36,8 @@ class Rule34vaultExtractor(BooruExtractor):
 
     def _prepare(self, post):
         post.pop("files", None)
-        post["date"] = self.parse_datetime_iso(post["created"])
+        post["date"] = text.parse_datetime(
+            post["created"], "%Y-%m-%dT%H:%M:%S.%fZ")
         if "tags" in post:
             post["tags"] = [t["value"] for t in post["tags"]]
 

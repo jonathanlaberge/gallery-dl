@@ -284,14 +284,14 @@ def main():
 
             # unsupported file logging handler
             if handler := output.setup_logging_handler(
-                    "unsupportedfile", fmt="{message}", defer=True):
+                    "unsupportedfile", fmt="{message}"):
                 ulog = job.Job.ulog = logging.getLogger("unsupported")
                 ulog.addHandler(handler)
                 ulog.propagate = False
 
             # error file logging handler
             if handler := output.setup_logging_handler(
-                    "errorfile", fmt="{message}", mode="a", defer=True):
+                    "errorfile", fmt="{message}", mode="a"):
                 elog = input_manager.err = logging.getLogger("errorfile")
                 elog.addHandler(handler)
                 elog.propagate = False

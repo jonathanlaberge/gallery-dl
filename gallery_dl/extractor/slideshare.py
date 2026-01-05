@@ -10,6 +10,7 @@
 """Extractors for https://www.slideshare.net/"""
 
 from .common import GalleryExtractor
+from .. import text
 
 
 class SlidesharePresentationExtractor(GalleryExtractor):
@@ -39,8 +40,8 @@ class SlidesharePresentationExtractor(GalleryExtractor):
             "description" : slideshow["description"].strip(),
             "views"       : slideshow["views"],
             "likes"       : slideshow["likes"],
-            "date"        : self.parse_datetime_iso(
-                slideshow["createdAt"][:19]),
+            "date"        : text.parse_datetime(
+                slideshow["createdAt"], "%Y-%m-%d %H:%M:%S %Z"),
         }
 
     def images(self, page):

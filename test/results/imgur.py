@@ -6,6 +6,7 @@
 
 from gallery_dl.extractor import imgur
 from gallery_dl import exception
+import datetime
 
 
 __tests__ = (
@@ -214,7 +215,7 @@ __tests__ = (
     },
     "account_id" : 0,
     "count"      : 19,
-    "date"       : "type:datetime",
+    "date"       : datetime.datetime,
     "description": "",
     "ext"        : "jpg",
     "has_sound"  : False,

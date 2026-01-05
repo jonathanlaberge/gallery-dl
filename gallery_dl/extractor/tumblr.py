@@ -9,7 +9,8 @@
 """Extractors for https://www.tumblr.com/"""
 
 from .common import Extractor, Message
-from .. import text, util, dt, oauth, exception
+from .. import text, util, oauth, exception
+from datetime import datetime, date, timedelta
 
 
 BASE_PATTERN = (
@@ -30,12 +31,15 @@ class TumblrExtractor(Extractor):
     filename_fmt = "{category}_{blog_name}_{id}_{num:>02}.{extension}"
     archive_fmt = "{id}_{num}"
 
-    def _init(self):
-        if name := self.groups[1]:
+    def __init__(self, match):
+        Extractor.__init__(self, match)
+
+        if name := match[2]:
             self.blog = name + ".tumblr.com"
         else:
-            self.blog = self.groups[0] or self.groups[2]
+            self.blog = match[1] or match[3]
 
+    def _init(self):
         self.api = TumblrAPI(self)
         self.types = self._setup_posttypes()
         self.avatar = self.config("avatar", False)
@@ -60,16 +64,16 @@ class TumblrExtractor(Extractor):
         blog = None
 
         # pre-compile regular expressions
-        self._sub_video = text.re(
+        self._sub_video = util.re(
             r"https?://((?:vt|vtt|ve)(?:\.media)?\.tumblr\.com"
             r"/tumblr_[^_]+)_\d+\.([0-9a-z]+)").sub
         if self.inline:
-            self._sub_image = text.re(
+            self._sub_image = util.re(
                 r"https?://(\d+\.media\.tumblr\.com(?:/[0-9a-f]+)?"
                 r"/tumblr(?:_inline)?_[^_]+)_\d+\.([0-9a-z]+)").sub
-            self._subn_orig_image = text.re(r"/s\d+x\d+/").subn
-            _findall_image = text.re('<img src="([^"]+)"').findall
-            _findall_video = text.re('<source src="([^"]+)"').findall
+            self._subn_orig_image = util.re(r"/s\d+x\d+/").subn
+            _findall_image = util.re('<img src="([^"]+)"').findall
+            _findall_video = util.re('<source src="([^"]+)"').findall
 
         for post in self.posts():
             if self.date_min > post["timestamp"]:
@@ -87,7 +91,7 @@ class TumblrExtractor(Extractor):
 
                     if self.avatar:
                         url = self.api.avatar(self.blog)
-                        yield Message.Directory, "", {"blog": blog}
+                        yield Message.Directory, {"blog": blog}
                         yield self._prepare_avatar(url, post.copy(), blog)
 
                 post["blog"] = blog
@@ -99,7 +103,7 @@ class TumblrExtractor(Extractor):
 
             if "trail" in post:
                 del post["trail"]
-            post["date"] = self.parse_timestamp(post["timestamp"])
+            post["date"] = text.parse_timestamp(post["timestamp"])
             posts = []
 
             if "photos" in post:  # type "photo" or "link"
@@ -160,7 +164,7 @@ class TumblrExtractor(Extractor):
                     del post["extension"]
 
             post["count"] = len(posts)
-            yield Message.Directory, "", post
+            yield Message.Directory, post
 
             for num, (msg, url, post) in enumerate(posts, 1):
                 post["num"] = num
@@ -283,10 +287,14 @@ class TumblrPostExtractor(TumblrExtractor):
     pattern = BASE_PATTERN + r"/(?:post/|image/)?(\d+)"
     example = "https://www.tumblr.com/BLOG/12345"
 
-    def posts(self):
+    def __init__(self, match):
+        TumblrExtractor.__init__(self, match)
+        self.post_id = match[4]
         self.reblogs = True
         self.date_min = 0
-        return self.api.posts(self.blog, {"id": self.groups[3]})
+
+    def posts(self):
+        return self.api.posts(self.blog, {"id": self.post_id})
 
     def _setup_posttypes(self):
         return POST_TYPES
@@ -295,13 +303,15 @@ class TumblrPostExtractor(TumblrExtractor):
 class TumblrTagExtractor(TumblrExtractor):
     """Extractor for Tumblr user's posts by tag"""
     subcategory = "tag"
-    pattern = BASE_PATTERN + r"(?:/archive)?/tagged/([^/?#]+)"
+    pattern = BASE_PATTERN + r"/tagged/([^/?#]+)"
     example = "https://www.tumblr.com/BLOG/tagged/TAG"
 
+    def __init__(self, match):
+        TumblrExtractor.__init__(self, match)
+        self.tag = text.unquote(match[4].replace("-", " "))
+
     def posts(self):
-        self.kwdict["search_tags"] = tag = text.unquote(
-            self.groups[3].replace("-", " "))
-        return self.api.posts(self.blog, {"tag": tag})
+        return self.api.posts(self.blog, {"tag": self.tag})
 
 
 class TumblrDayExtractor(TumblrExtractor):
@@ -310,13 +320,21 @@ class TumblrDayExtractor(TumblrExtractor):
     pattern = BASE_PATTERN + r"/day/(\d\d\d\d/\d\d/\d\d)"
     example = "https://www.tumblr.com/BLOG/day/1970/01/01"
 
-    def posts(self):
-        year, month, day = self.groups[3].split("/")
-        ordinal = dt.date(int(year), int(month), int(day)).toordinal()
+    def __init__(self, match):
+        TumblrExtractor.__init__(self, match)
+        year, month, day = match[4].split("/")
+        self.ordinal = date(int(year), int(month), int(day)).toordinal()
 
-        # 719163 == date(1970, 1, 1).toordinal()
-        self.date_min = (ordinal - 719163) * 86400
+    def _init(self):
+        TumblrExtractor._init(self)
+
+        self.date_min = (
+            # 719163 == date(1970, 1, 1).toordinal()
+            (self.ordinal - 719163) * 86400)
+
         self.api.before = self.date_min + 86400
+
+    def posts(self):
         return self.api.posts(self.blog, {})
 
 
@@ -513,7 +531,7 @@ class TumblrAPI(oauth.OAuth1API):
                         self.extractor.wait(seconds=reset)
                         continue
 
-                    t = (dt.now() + dt.timedelta(0, float(reset))).time()
+                    t = (datetime.now() + timedelta(0, float(reset))).time()
                     raise exception.AbortExtraction(
                         f"Aborting - Rate limit will reset at "
                         f"{t.hour:02}:{t.minute:02}:{t.second:02}")
@@ -531,16 +549,9 @@ class TumblrAPI(oauth.OAuth1API):
         if self.api_key:
             params["api_key"] = self.api_key
 
-        if strategy := self.extractor.config("pagination"):
-            if strategy not in {"api", "before"} and "offset" not in params:
-                self.log.warning('Unable to use "pagination": "%s". '
-                                 'Falling back to "api".', strategy)
-                strategy = "api"
-        elif params.get("before"):
-            strategy = "before"
-        elif "offset" not in params:
+        strategy = self.extractor.config("pagination")
+        if not strategy and "offset" not in params:
             strategy = "api"
-        self.log.debug("Pagination strategy '%s'", strategy or "offset")
 
         while True:
             data = self._call(endpoint, params)
@@ -562,9 +573,10 @@ class TumblrAPI(oauth.OAuth1API):
                     endpoint = data["_links"]["next"]["href"]
                 except KeyError:
                     return
-                if params is not None and self.api_key:
-                    endpoint = f"{endpoint}&api_key={self.api_key}"
-                    params = None
+
+                params = None
+                if self.api_key:
+                    endpoint += "&api_key=" + self.api_key
 
             elif strategy == "before":
                 if not posts:

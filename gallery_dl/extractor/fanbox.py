@@ -66,17 +66,18 @@ class FanboxExtractor(Extractor):
             if fee_max is not None and fee_max < item["feeRequired"]:
                 self.log.warning("Skipping post %s (feeRequired of %s > %s)",
                                  item["id"], item["feeRequired"], fee_max)
-            else:
-                try:
-                    url = ("https://api.fanbox.cc/post.info?postId=" +
-                           item["id"])
-                    item = self.request_json(url, headers=self.headers)["body"]
-                except Exception as exc:
-                    self.log.warning("Skipping post %s (%s: %s)",
-                                     item["id"], exc.__class__.__name__, exc)
+                continue
 
-            content_body, post = self._extract_post(item)
-            yield Message.Directory, "", post
+            try:
+                url = "https://api.fanbox.cc/post.info?postId=" + item["id"]
+                body = self.request_json(url, headers=self.headers)["body"]
+                content_body, post = self._extract_post(body)
+            except Exception as exc:
+                self.log.warning("Skipping post %s (%s: %s)",
+                                 item["id"], exc.__class__.__name__, exc)
+                continue
+
+            yield Message.Directory, post
             yield from self._get_urls_from_post(content_body, post)
 
     def posts(self):
@@ -127,19 +128,15 @@ class FanboxExtractor(Extractor):
                         if file.get("extension", "").lower() in exts
                     ]
 
-        try:
-            post["date"] = self.parse_datetime_iso(post["publishedDatetime"])
-        except Exception:
-            post["date"] = None
+        post["date"] = text.parse_datetime(post["publishedDatetime"])
         post["text"] = content_body.get("text") if content_body else None
         post["isCoverImage"] = False
 
-        cid = post.get("creatorId")
-        if self._meta_user and cid is not None:
-            post["user"] = self._get_user_data(cid)
-        if self._meta_plan and cid is not None:
+        if self._meta_user:
+            post["user"] = self._get_user_data(post["creatorId"])
+        if self._meta_plan:
             plans = self._get_plan_data(post["creatorId"])
-            fee = post.get("feeRequired") or 0
+            fee = post["feeRequired"]
             try:
                 post["plan"] = plans[fee]
             except KeyError:
@@ -150,7 +147,7 @@ class FanboxExtractor(Extractor):
                     plan["fee"] = fee
                 post["plan"] = plans[fee] = plan
         if self._meta_comments:
-            if post.get("commentCount"):
+            if post["commentCount"]:
                 post["comments"] = list(self._get_comment_data(post["id"]))
             else:
                 post["commentd"] = ()
@@ -219,7 +216,7 @@ class FanboxExtractor(Extractor):
     def _get_urls_from_post(self, content_body, post):
         num = 0
         if cover_image := post.get("coverImageUrl"):
-            cover_image = text.re("/c/[0-9a-z_]+").sub("", cover_image)
+            cover_image = util.re("/c/[0-9a-z_]+").sub("", cover_image)
             final_post = post.copy()
             final_post["isCoverImage"] = True
             final_post["fileUrl"] = cover_image
@@ -340,7 +337,7 @@ class FanboxExtractor(Extractor):
             url = (f"https://docs.google.com/forms/d/e/"
                    f"{content_id}/viewform?usp=sf_link")
         else:
-            self.log.warning("service not recognized: %s", provider)
+            self.log.warning(f"service not recognized: {provider}")
 
         if url:
             final_post["embed"] = embed
@@ -365,20 +362,9 @@ class FanboxCreatorExtractor(FanboxExtractor):
 
     def _pagination_creator(self, url):
         urls = self.request_json(url, headers=self.headers)["body"]
-        if offset := self.config("offset"):
-            quotient, remainder = divmod(offset, 10)
-            if quotient:
-                urls = urls[quotient:]
-        else:
-            remainder = None
-
         for url in urls:
             url = text.ensure_http_scheme(url)
-            posts = self.request_json(url, headers=self.headers)["body"]
-            if remainder:
-                posts = posts[remainder:]
-                remainder = None
-            yield from posts
+            yield from self.request_json(url, headers=self.headers)["body"]
 
 
 class FanboxPostExtractor(FanboxExtractor):
@@ -417,7 +403,6 @@ class FanboxRedirectExtractor(Extractor):
     """Extractor for pixiv redirects to fanbox.cc"""
     category = "fanbox"
     subcategory = "redirect"
-    cookies_domain = None
     pattern = r"(?:https?://)?(?:www\.)?pixiv\.net/fanbox/creator/(\d+)"
     example = "https://www.pixiv.net/fanbox/creator/12345"
 

@@ -6,6 +6,7 @@
 
 gallery_dl = __import__("gallery_dl.extractor.4archive")
 _4archive = getattr(gallery_dl.extractor, "4archive")
+import datetime
 
 
 __tests__ = (
@@ -18,7 +19,7 @@ __tests__ = (
 
     "board" : "u",
     "com"   : str,
-    "date"  : "type:datetime",
+    "date"  : datetime.datetime,
     "name"  : "Anonymous",
     "no"    : range(2397221, 2418158),
     "thread": 2397221,

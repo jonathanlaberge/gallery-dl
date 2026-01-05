@@ -54,7 +54,7 @@ class FuraffinityExtractor(Extractor):
             if post := self._parse_post(post_id):
                 if metadata:
                     post.update(metadata)
-                yield Message.Directory, "", post
+                yield Message.Directory, post
                 yield Message.Url, post["url"], post
 
                 if self.external:
@@ -95,7 +95,7 @@ class FuraffinityExtractor(Extractor):
 
         if self._new_layout:
             data["tags"] = text.split_html(extr(
-                "<h3>Keywords</h3>", "</section>"))
+                'class="tags-row">', '</section>'))
             data["scraps"] = (extr(' submissions">', "<") == "Scraps")
             data["title"] = text.unescape(extr("<h2><p>", "</p></h2>"))
             data["artist_url"] = extr('title="', '"').strip()
@@ -143,7 +143,7 @@ class FuraffinityExtractor(Extractor):
             data["folders"] = ()  # folders not present in old layout
 
         data["user"] = self.user or data["artist_url"]
-        data["date"] = self.parse_timestamp(data["filename"].partition(".")[0])
+        data["date"] = text.parse_timestamp(data["filename"].partition(".")[0])
         data["description"] = self._process_description(data["_description"])
         data["thumbnail"] = (f"https://t.furaffinity.net/{post_id}@600-"
                              f"{path.rsplit('/', 2)[1]}.jpg")
@@ -322,7 +322,7 @@ class FuraffinityUserExtractor(Dispatch, FuraffinityExtractor):
 
     def items(self):
         base = self.root
-        user = self.user + "/"
+        user = f"{self.user}/"
         return self._dispatch_extractors((
             (FuraffinityGalleryExtractor , f"{base}/gallery/{user}"),
             (FuraffinityScrapsExtractor  , f"{base}/scraps/{user}"),

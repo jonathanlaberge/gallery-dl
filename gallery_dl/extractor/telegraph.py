@@ -27,8 +27,9 @@ class TelegraphGalleryExtractor(GalleryExtractor):
                 'property="og:title" content="', '"')),
             "description": text.unescape(extr(
                 'property="og:description" content="', '"')),
-            "date": self.parse_datetime_iso(extr(
-                'property="article:published_time" content="', '"')),
+            "date": text.parse_datetime(extr(
+                'property="article:published_time" content="', '"'),
+                "%Y-%m-%dT%H:%M:%S%z"),
             "author": text.unescape(extr(
                 'property="article:author" content="', '"')),
             "post_url": text.unescape(extr(

@@ -9,7 +9,7 @@
 """Extractors for https://speakerdeck.com/"""
 
 from .common import GalleryExtractor
-from .. import text
+from .. import text, util
 
 
 class SpeakerdeckPresentationExtractor(GalleryExtractor):
@@ -46,7 +46,7 @@ class SpeakerdeckPresentationExtractor(GalleryExtractor):
     def images(self, _):
         url = f"{self.root}/player/{self.presentation_id}"
         page = self.request(url).text
-        page = text.re(r"\s+").sub(" ", page)
+        page = util.re(r"\s+").sub(" ", page)
         return [
             (url, None)
             for url in text.extract_iter(page, 'js-sd-slide" data-url="', '"')

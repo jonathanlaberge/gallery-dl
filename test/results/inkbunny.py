@@ -5,6 +5,7 @@
 # published by the Free Software Foundation.
 
 from gallery_dl.extractor import inkbunny
+import datetime
 
 
 __tests__ = (
@@ -15,7 +16,7 @@ __tests__ = (
     "#pattern" : r"https://[\w.]+\.metapix\.net/files/full/\d+/\d+_soina_.+",
     "#range"   : "20-50",
 
-    "date"           : "type:datetime",
+    "date"           : datetime.datetime,
     "deleted"        : bool,
     "file_id"        : r"re:[0-9]+",
     "filename"       : r"re:[0-9]+_soina_\w+",

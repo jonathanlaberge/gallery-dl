@@ -154,8 +154,9 @@ class ImhentaiTagExtractor(ImhentaiExtractor):
 class ImhentaiSearchExtractor(ImhentaiExtractor):
     """Extractor for imhentai search results"""
     subcategory = "search"
-    pattern = BASE_PATTERN + r"(/(?:advanced-)?search/?\?[^#]+|/[^/?#]+/?)"
+    pattern = BASE_PATTERN + r"/search(/?\?[^#]+|/[^/?#]+/?)"
     example = "https://imhentai.xxx/search/?key=QUERY"
 
     def items(self):
-        return self._pagination(self.root + self.groups[-1])
+        url = self.root + "/search" + self.groups[-1]
+        return self._pagination(url)

@@ -51,17 +51,12 @@ class E621Extractor(danbooru.DanbooruExtractor):
 
             post["filename"] = file["md5"]
             post["extension"] = file["ext"]
-            post["date"] = self.parse_datetime_iso(post["created_at"])
+            post["date"] = text.parse_datetime(
+                post["created_at"], "%Y-%m-%dT%H:%M:%S.%f%z")
 
             post.update(data)
-            yield Message.Directory, "", post
+            yield Message.Directory, post
             yield Message.Url, file["url"], post
-
-    def items_artists(self):
-        for artist in self.artists():
-            artist["_extractor"] = E621TagExtractor
-            url = f"{self.root}/posts?tags={text.quote(artist['name'])}"
-            yield Message.Queue, url, artist
 
     def _get_notes(self, id):
         return self.request_json(
@@ -140,25 +135,6 @@ class E621PopularExtractor(E621Extractor, danbooru.DanbooruPopularExtractor):
 
     def posts(self):
         return self._pagination("/popular.json", self.params)
-
-
-class E621ArtistExtractor(E621Extractor, danbooru.DanbooruArtistExtractor):
-    """Extractor for e621 artists"""
-    subcategory = "artist"
-    pattern = BASE_PATTERN + r"/artists/(\d+)"
-    example = "https://e621.net/artists/12345"
-
-    items = E621Extractor.items_artists
-
-
-class E621ArtistSearchExtractor(E621Extractor,
-                                danbooru.DanbooruArtistSearchExtractor):
-    """Extractor for e621 artist searches"""
-    subcategory = "artist-search"
-    pattern = BASE_PATTERN + r"/artists/?\?([^#]+)"
-    example = "https://e621.net/artists?QUERY"
-
-    items = E621Extractor.items_artists
 
 
 class E621FavoriteExtractor(E621Extractor):

@@ -9,7 +9,7 @@
 """Extractors for https://rule34.paheal.net/"""
 
 from .common import Extractor, Message
-from .. import text, exception
+from .. import text
 
 
 class PahealExtractor(Extractor):
@@ -31,7 +31,7 @@ class PahealExtractor(Extractor):
             post["width"] = text.parse_int(post["width"])
             post["height"] = text.parse_int(post["height"])
             post.update(data)
-            yield Message.Directory, "", post
+            yield Message.Directory, post
             yield Message.Url, post["file_url"], post
 
     def get_metadata(self):
@@ -53,7 +53,8 @@ class PahealExtractor(Extractor):
                          extr("<source src='", "'")),
             "uploader": text.unquote(extr(
                 "class='username' href='/user/", "'")),
-            "date"    : self.parse_datetime_iso(extr("datetime='", "'")),
+            "date"    : text.parse_datetime(
+                extr("datetime='", "'"), "%Y-%m-%dT%H:%M:%S%z"),
             "source"  : text.unescape(text.extr(
                 extr(">Source Link<", "</td>"), "href='", "'")),
         }
@@ -96,12 +97,7 @@ class PahealTagExtractor(PahealExtractor):
         base = f"{self.root}/post/list/{self.groups[0]}/"
 
         while True:
-            try:
-                page = self.request(base + str(pnum)).text
-            except exception.HttpError as exc:
-                if exc.status == 404:
-                    return
-                raise
+            page = self.request(base + str(pnum)).text
 
             pos = page.find("id='image-list'")
             for post in text.extract_iter(
@@ -132,7 +128,7 @@ class PahealTagExtractor(PahealExtractor):
             "duration" : text.parse_float(duration[:-1]),
             "tags"     : text.unescape(tags),
             "size"     : text.parse_bytes(size[:-1]),
-            "date"     : self.parse_datetime(date, "%B %d, %Y; %H:%M"),
+            "date"     : text.parse_datetime(date, "%B %d, %Y; %H:%M"),
             "filename" : f"{pid} - {tags}",
             "extension": ext,
         }
@@ -150,9 +146,4 @@ class PahealPostExtractor(PahealExtractor):
     example = "https://rule34.paheal.net/post/view/12345"
 
     def get_posts(self):
-        try:
-            return (self._extract_post(self.groups[0]),)
-        except exception.HttpError as exc:
-            if exc.status == 404:
-                return ()
-            raise
+        return (self._extract_post(self.groups[0]),)

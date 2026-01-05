@@ -44,8 +44,6 @@ class BlueskyExtractor(Extractor):
         for post in self.posts():
             if "post" in post:
                 post = post["post"]
-            elif "item" in post:
-                post = post["item"]
             if self._user_did and post["author"]["did"] != self._user_did:
                 self.log.debug("Skipping %s (repost)", self._pid(post))
                 continue
@@ -60,7 +58,7 @@ class BlueskyExtractor(Extractor):
                 self._prepare(post)
                 files = self._extract_files(post)
 
-                yield Message.Directory, "", post
+                yield Message.Directory, post
                 if files:
                     did = post["author"]["did"]
                     base = (f"{self.api.service_endpoint(did)}/xrpc"
@@ -135,7 +133,8 @@ class BlueskyExtractor(Extractor):
 
         post["instance"] = self.instance
         post["post_id"] = self._pid(post)
-        post["date"] = self.parse_datetime_iso(post["createdAt"][:19])
+        post["date"] = text.parse_datetime(
+            post["createdAt"][:19], "%Y-%m-%dT%H:%M:%S")
 
     def _extract_files(self, post):
         if "embed" not in post:
@@ -149,15 +148,9 @@ class BlueskyExtractor(Extractor):
 
         if "images" in media:
             for image in media["images"]:
-                try:
-                    files.append(self._extract_media(image, "image"))
-                except Exception:
-                    pass
+                files.append(self._extract_media(image, "image"))
         if "video" in media and self.videos:
-            try:
-                files.append(self._extract_media(media, "video"))
-            except Exception:
-                pass
+            files.append(self._extract_media(media, "video"))
 
         post["count"] = len(files)
         return files
@@ -336,7 +329,7 @@ class BlueskyInfoExtractor(BlueskyExtractor):
     def items(self):
         self._metadata_user = True
         self.api._did_from_actor(self.groups[0])
-        return iter(((Message.Directory, "", self._user),))
+        return iter(((Message.Directory, self._user),))
 
 
 class BlueskyAvatarExtractor(BlueskyExtractor):
@@ -379,15 +372,6 @@ class BlueskyHashtagExtractor(BlueskyExtractor):
         return self.api.search_posts("#"+hashtag, order)
 
 
-class BlueskyBookmarkExtractor(BlueskyExtractor):
-    subcategory = "bookmark"
-    pattern = BASE_PATTERN + r"/saved"
-    example = "https://bsky.app/saved"
-
-    def posts(self):
-        return self.api.get_bookmarks()
-
-
 class BlueskyAPI():
     """Interface for the Bluesky API
 
@@ -400,9 +384,7 @@ class BlueskyAPI():
         self.headers = {"Accept": "application/json"}
 
         self.username, self.password = extractor._get_auth_info()
-        if srv := extractor.config("api-server", False):
-            self.root = srv.rstrip("/")
-        elif self.username:
+        if self.username:
             self.root = "https://bsky.social"
         else:
             self.root = "https://api.bsky.app"
@@ -424,10 +406,6 @@ class BlueskyAPI():
             "limit" : "100",
         }
         return self._pagination(endpoint, params)
-
-    def get_bookmarks(self):
-        endpoint = "app.bsky.bookmark.getBookmarks"
-        return self._pagination(endpoint, {}, "bookmarks", check_empty=True)
 
     def get_feed(self, actor, feed):
         endpoint = "app.bsky.feed.getFeed"

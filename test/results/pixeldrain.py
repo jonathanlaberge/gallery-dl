@@ -5,6 +5,7 @@
 # published by the Free Software Foundation.
 
 from gallery_dl.extractor import pixeldrain
+import datetime
 
 __tests__ = (
 {
@@ -80,7 +81,7 @@ __tests__ = (
         "success"     : True,
         "title"       : "アルバム",
     },
-    "date"       : "type:datetime",
+    "date"       : datetime.datetime,
     "description": "",
     "detail_href": r"re:/file/(yEK1n2Qc|jW9E6s4h)/info",
     "hash_sha256": r"re:\w{64}",

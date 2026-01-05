@@ -37,7 +37,8 @@ class TwibooruExtractor(BooruExtractor):
         return post["view_url"]
 
     def _prepare(self, post):
-        post["date"] = self.parse_datetime_iso(post["created_at"])
+        post["date"] = text.parse_datetime(
+            post["created_at"], "%Y-%m-%dT%H:%M:%S.%fZ")
 
         if "name" in post:
             name, sep, rest = post["name"].rpartition(".")
@@ -145,8 +146,8 @@ class TwibooruAPI():
                 return response.json()
 
             if response.status_code == 429:
-                until = self.parse_datetime_iso(
-                    response.headers["X-RL-Reset"][:19])
+                until = text.parse_datetime(
+                    response.headers["X-RL-Reset"], "%Y-%m-%d %H:%M:%S %Z")
                 # wait an extra minute, just to be safe
                 self.extractor.wait(until=until, adjust=60.0)
                 continue

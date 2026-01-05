@@ -52,7 +52,6 @@ class WebtoonsEpisodeExtractor(WebtoonsBase, GalleryExtractor):
                r"/viewer\?([^#'\"]+)")
     example = ("https://www.webtoons.com/en/GENRE/TITLE/NAME/viewer"
                "?title_no=123&episode_no=12345")
-    images_urls = []
 
     def _init(self):
         self.setup_agegate_cookies()
@@ -62,7 +61,6 @@ class WebtoonsEpisodeExtractor(WebtoonsBase, GalleryExtractor):
         self.title_no = params.get("title_no")
         self.episode_no = params.get("episode_no")
         self.page_url = f"{self.root}/{base}/viewer?{query}"
-        self.bgm = self.config("bgm", True)
 
     def metadata(self, page):
         extr = text.extract_from(page)
@@ -75,7 +73,7 @@ class WebtoonsEpisodeExtractor(WebtoonsBase, GalleryExtractor):
         else:
             comic_name = episode_name = ""
 
-        if extr('<span class="tx _btnOpenEpisodeLis', '"'):
+        if extr('<span class="tx _btnOpenEpisodeList ', '"'):
             episode = extr(">#", "<")
         else:
             episode = ""
@@ -116,21 +114,12 @@ class WebtoonsEpisodeExtractor(WebtoonsBase, GalleryExtractor):
         elif not isinstance(quality, dict):
             quality = None
 
-        if self.bgm:
-            num = 0
-            self.paths = paths = {}
-        else:
-            num = None
-
         results = []
         for url in text.extract_iter(
                 page, 'class="_images" data-url="', '"'):
 
-            path, _, query = url.rpartition("?")
-            if num is not None:
-                num += 1
-                paths[path[path.find("/", 8):]] = num
             if quality is not None:
+                path, _, query = url.rpartition("?")
                 type = quality.get(path.rpartition(".")[2].lower())
                 if type is False:
                     url = path
@@ -141,60 +130,10 @@ class WebtoonsEpisodeExtractor(WebtoonsBase, GalleryExtractor):
         return results
 
     def assets(self, page):
-        assets = []
-
         if self.config("thumbnails", False):
-            active = text.extr(page, 'class="on', '</a>')
+            active = text.extr(page, 'class="on ', '</a>')
             url = _url(text.extr(active, 'data-url="', '"'))
-            assets.append({"url": url, "type": "thumbnail"})
-
-        if self.bgm:
-            if bgm := text.extr(page, "episodeBgmList:", ",\n"):
-                self._asset_bgm(assets, util.json_loads(bgm))
-
-        return assets
-
-    def _asset_bgm(self, assets, bgm_list):
-        import binascii
-        params = {
-            #  "quality"     : "MIDDLE",
-            "quality"     : "HIGH",  # no difference to 'MIDDLE'
-            "acceptCodecs": "AAC,MP3",
-        }
-        headers = {
-            "Accept"        : "application/json",
-            "Content-Type"  : "application/json",
-            "Origin"        : self.root,
-            "Referer"       : self.root + "/",
-            "Sec-Fetch-Dest": "empty",
-            "Sec-Fetch-Mode": "cors",
-            "Sec-Fetch-Site": "cross-site",
-        }
-        paths = self.paths
-
-        for bgm in bgm_list:
-            url = (f"https://apis.naver.com/audiocweb/audiocplayogwweb/play"
-                   f"/audio/{bgm['audioId']}/hls/token")
-            data = self.request_json(
-                url, params=params, headers=headers, interval=False)
-            token = data["result"]["playToken"]
-            data = util.json_loads(binascii.a2b_base64(token).decode())
-            audio = data["audioInfo"]
-            play = bgm.get("playImageUrl", "")
-            stop = bgm.get("stopImageUrl", "")
-
-            assets.append({
-                **bgm,
-                **audio,
-                "num_play": paths.get(play) or 0,
-                "num_stop": paths.get(stop) or 0,
-                "filename_play": play[play.rfind("/")+1:play.rfind(".")],
-                "filename_stop": stop[stop.rfind("/")+1:stop.rfind(".")],
-                "type": "bgm",
-                "url" : "ytdl:" + audio["url"],
-                "_ytdl_manifest": audio["type"].lower(),
-                "extension": "mp3",
-            })
+            return ({"url": url, "type": "thumbnail"},)
 
 
 class WebtoonsComicExtractor(WebtoonsBase, Extractor):
@@ -221,7 +160,7 @@ class WebtoonsComicExtractor(WebtoonsBase, Extractor):
         page = response.text
 
         if self.config("banners") and (asset := self._asset_banner(page)):
-            yield Message.Directory, "", asset
+            yield Message.Directory, asset
             yield Message.Url, asset["url"], asset
 
         data = {"_extractor": WebtoonsEpisodeExtractor}

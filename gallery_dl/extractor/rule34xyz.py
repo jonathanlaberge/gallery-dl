@@ -68,7 +68,8 @@ class Rule34xyzExtractor(BooruExtractor):
 
     def _prepare(self, post):
         post.pop("files", None)
-        post["date"] = self.parse_datetime_iso(post["created"])
+        post["date"] = text.parse_datetime(
+            post["created"], "%Y-%m-%dT%H:%M:%S.%fZ")
         post["filename"], _, post["format"] = post["filename"].rpartition(".")
         if "tags" in post:
             post["tags"] = [t["value"] for t in post["tags"]]
@@ -120,13 +121,13 @@ class Rule34xyzExtractor(BooruExtractor):
     def _login_impl(self, username, password):
         self.log.info("Logging in as %s", username)
 
-        url = self.root + "/api/v2/auth/signin"
+        url = f"{self.root}/api/v2/auth/signin"
         data = {"email": username, "password": password}
         response = self.request_json(
             url, method="POST", json=data, fatal=False)
 
         if jwt := response.get("jwt"):
-            return "Bearer " + jwt
+            return f"Bearer {jwt}"
         raise exception.AuthenticationError(
             (msg := response.get("message")) and f'"{msg}"')
 

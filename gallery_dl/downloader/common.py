@@ -31,15 +31,8 @@ class DownloaderBase():
         self.partdir = self.config("part-directory")
 
         if self.partdir:
-            if isinstance(self.partdir, dict):
-                self.partdir = [
-                    (util.compile_filter(expr) if expr else util.true,
-                     util.expand_path(pdir))
-                    for expr, pdir in self.partdir.items()
-                ]
-            else:
-                self.partdir = util.expand_path(self.partdir)
-                os.makedirs(self.partdir, exist_ok=True)
+            self.partdir = util.expand_path(self.partdir)
+            os.makedirs(self.partdir, exist_ok=True)
 
         proxies = self.config("proxy", util.SENTINEL)
         if proxies is util.SENTINEL:

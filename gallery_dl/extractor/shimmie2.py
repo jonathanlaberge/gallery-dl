@@ -25,8 +25,6 @@ class Shimmie2Extractor(BaseExtractor):
 
         if file_url := self.config_instance("file_url"):
             self.file_url_fmt = file_url
-        if quote := self.config_instance("quote"):
-            self._quote_type = lambda _: quote
 
     def items(self):
         data = self.metadata()
@@ -46,7 +44,7 @@ class Shimmie2Extractor(BaseExtractor):
             else:
                 text.nameext_from_url(url, post)
 
-            yield Message.Directory, "", post
+            yield Message.Directory, post
             yield Message.Url, url, post
 
     def metadata(self):
@@ -82,15 +80,6 @@ BASE_PATTERN = Shimmie2Extractor.update({
     "nozrip": {
         "root": "https://noz.rip/booru",
         "pattern": r"noz\.rip/booru",
-    },
-    "thecollectionS": {
-        "root": "https://co.llection.pics",
-        "pattern": r"co\.llection\.pics",
-    },
-    "soybooru": {
-        "root": "https://soybooru.com",
-        "pattern": r"soybooru\.com",
-        "quote": "'",
     },
 }) + r"/(?:index\.php\?q=/?)?"
 
@@ -157,8 +146,9 @@ class Shimmie2TagExtractor(Shimmie2Extractor):
                 }
 
             pnum += 1
-            if not extr(f"/{pnum}{quote}>Next</", ">"):
-                return
+            if not extr(">Next<", ">"):
+                if not extr(f"/{pnum}'>{pnum}<", ">"):
+                    return
 
 
 class Shimmie2PostExtractor(Shimmie2Extractor):

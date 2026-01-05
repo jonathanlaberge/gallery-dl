@@ -18,7 +18,8 @@ class BbcGalleryExtractor(GalleryExtractor):
     """Extractor for a programme gallery on bbc.co.uk"""
     category = "bbc"
     root = "https://www.bbc.co.uk"
-    directory_fmt = ("{category}", "{path:I}")
+    directory_fmt = ("{category}", "{path[0]}", "{path[1]}", "{path[2]}",
+                     "{path[3:]:J - /}")
     filename_fmt = "{num:>02}.{extension}"
     archive_fmt = "{programme}_{num}"
     pattern = BASE_PATTERN + r"[^/?#]+(?!/galleries)(?:/[^/?#]+)?)$"

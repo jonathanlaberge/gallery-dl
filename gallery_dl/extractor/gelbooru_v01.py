@@ -35,7 +35,8 @@ class GelbooruV01Extractor(booru.BooruExtractor):
         }
 
         post["md5"] = post["file_url"].rpartition("/")[2].partition(".")[0]
-        post["date"] = self.parse_datetime_iso(post["created_at"])
+        post["date"] = text.parse_datetime(
+            post["created_at"], "%Y-%m-%d %H:%M:%S")
 
         return post
 

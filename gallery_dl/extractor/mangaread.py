@@ -7,7 +7,7 @@
 """Extractors for https://mangaread.org/"""
 
 from .common import ChapterExtractor, MangaExtractor
-from .. import text, exception
+from .. import text, util, exception
 
 
 class MangareadBase():
@@ -16,7 +16,7 @@ class MangareadBase():
     root = "https://www.mangaread.org"
 
     def parse_chapter_string(self, chapter_string, data):
-        match = text.re(
+        match = util.re(
             r"(?:(.+)\s*-\s*)?[Cc]hapter\s*(\d+)(\.\d+)?(?:\s*-\s*(.+))?"
         ).match(text.unescape(chapter_string).strip())
         manga, chapter, minor, title = match.groups()
